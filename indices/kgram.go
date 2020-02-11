@@ -41,10 +41,7 @@ func (ki KGramIndex) BuildFromTextFile(filename string) {
 func (ki KGramIndex) addWordToPostingsList(word string) {
 	m := buildKGrams(word, ki.k)
 	for _, gram := range m {
-		pList, ok := ki.PostingsLists[gram]
-		if !ok {
-			pList = []string{}
-		}
+		pList := ki.PostingsLists[gram]
 		ki.PostingsLists[gram] = append(pList, word)
 	}
 }

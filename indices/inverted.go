@@ -41,10 +41,7 @@ func (ii InvertedIndex) BuildFromTextFile(filename string) {
 func (ii InvertedIndex) addIDToPostingsList(word string, docID int) {
     if len(word) > 0 {
         word = strings.ToLower(word)
-        pList, ok := ii.PostingsLists[word]
-        if !ok {
-            pList = []int{}
-        }
+        pList := ii.PostingsLists[word]
         if len(pList) == 0 || pList[len(pList) - 1] != docID {
             ii.PostingsLists[word] = append(pList, docID)
         }
