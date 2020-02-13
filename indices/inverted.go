@@ -53,13 +53,14 @@ func (ii InvertedIndex) Intersect(terms []string) (result []int) {
     result = ii.PostingsLists[terms[0]]
     pointer := 1
     for pointer < len(terms) && len(result) != 0 {
-        result = intersectPair(result, ii.PostingsLists[terms[pointer]])
+        result = IntersectPosting(result, ii.PostingsLists[terms[pointer]])
         pointer++
     }
     return
 }
 
-func intersectPair(plist1 []int, plist2 []int) (result []int) {
+func IntersectPosting(plist1 []int, plist2 []int) (result []int) {
+    // plist1 and plist 2 are assumed to be sorted.
     result = []int{}
     pointer1, pointer2 := 0, 0
     for pointer1 < len(plist1) && pointer2 < len(plist2) {
@@ -91,5 +92,24 @@ func (ii InvertedIndex) Union(terms []string) (result []int) {
         result[i] = k
         i++
     }
+    return
+}
+
+func UnionPosting(plist1 []int, plist2 []int) (result []int) {
+    // plist1 and plist 2 are assumed to be sorted.
+    set := make(map[int]bool)
+    for _, id := range plist1 {
+        set[id] = true
+    }
+    for _, id := range plist2 {
+        set[id] = true
+    }
+    result = make([]int, len(set))
+    i := 0
+    for k := range set {
+        result[i] = k
+        i++
+    }
+    sort.Ints(result)
     return
 }

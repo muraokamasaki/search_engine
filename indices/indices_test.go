@@ -117,6 +117,57 @@ func TestInvertedIndex_Intersect(t *testing.T) {
 	}
 }
 
+func TestIntersectPair(t *testing.T) {
+	pairs := []struct{
+		plist1 []int
+		plist2 []int
+		result []int
+	}{
+		{[]int{1, 2, 3, 4, 5, 6}, []int{2, 4, 6}, []int{2, 4, 6}},
+		{[]int{2, 3, 5}, []int{1, 2, 3, 4, 5, 6}, []int{2, 3, 5}},
+		{[]int{1, 2, 3}, []int{}, []int{}},
+		{[]int{1, 2, 3}, []int{4, 5, 6}, []int{}},
+		{[]int{1}, []int{1}, []int{1}},
+	}
+	for _, pair := range pairs {
+		res := IntersectPosting(pair.plist1, pair.plist2)
+		if len(res) != len(pair.result) {
+			t.Errorf("Wrong number of documents: Got %v, Wanted %v.", res, pair.result)
+		}
+		for i := range res {
+			if res[i] != pair.result[i] {
+				t.Errorf("Wrong k-grams: Got %v, Wanted %v", res, pair.result)
+			}
+		}
+	}
+}
+
+func TestUnionPair(t *testing.T) {
+	pairs := []struct{
+		plist1 []int
+		plist2 []int
+		result []int
+	}{
+		{[]int{1, 3, 5}, []int{2, 4, 6}, []int{1, 2, 3, 4, 5, 6}},
+		{[]int{1, 2, 3, 4, 5, 6}, []int{2, 4, 6}, []int{1, 2, 3, 4, 5, 6}},
+		{[]int{2, 3, 5}, []int{1, 2, 3, 4, 5, 6}, []int{1, 2, 3, 4, 5, 6}},
+		{[]int{}, []int{}, []int{}},
+		{[]int{1}, []int{2}, []int{1, 2}},
+
+	}
+	for _, pair := range pairs {
+		res := UnionPosting(pair.plist1, pair.plist2)
+		if len(res) != len(pair.result) {
+			t.Errorf("Wrong number of documents: Got %v, Wanted %v.", res, pair.result)
+		}
+		for i := range res {
+			if res[i] != pair.result[i] {
+				t.Errorf("Wrong k-grams: Got %v, Wanted %v", res, pair.result)
+			}
+		}
+	}
+}
+
 func TestInvertedIndex_Union(t *testing.T) {
 	ii := SetUpInvertedIndex()
 	ans := ii.Union([]string{"hello", "world"})
