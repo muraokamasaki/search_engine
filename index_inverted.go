@@ -1,11 +1,10 @@
-package indices
+package main
 
 import (
     "bufio"
     "log"
     "os"
     "sort"
-    "strings"
 )
 
 type InvertedIndex struct {
@@ -40,7 +39,6 @@ func (ii InvertedIndex) BuildFromTextFile(filename string) {
 
 func (ii InvertedIndex) addIDToPostingsList(word string, docID int) {
     if len(word) > 0 {
-        word = strings.ToLower(word)
         pList := ii.PostingsLists[word]
         if len(pList) == 0 || pList[len(pList) - 1] != docID {
             ii.PostingsLists[word] = append(pList, docID)
@@ -48,12 +46,16 @@ func (ii InvertedIndex) addIDToPostingsList(word string, docID int) {
     }
 }
 
+func (ii InvertedIndex) GetPostingsList(term string) (plist []int) {
+    return ii.PostingsLists[term]
+}
+
 func (ii InvertedIndex) Intersect(terms []string) (result []int) {
     sort.Slice(terms, func(i, j int) bool { return len(ii.PostingsLists[terms[i]]) < len(ii.PostingsLists[terms[j]]) })
-    result = ii.PostingsLists[terms[0]]
+    result = ii.GetPostingsList(terms[0])
     pointer := 1
     for pointer < len(terms) && len(result) != 0 {
-        result = IntersectPosting(result, ii.PostingsLists[terms[pointer]])
+        result = IntersectPosting(result, ii.GetPostingsList(terms[pointer]))
         pointer++
     }
     return
@@ -92,6 +94,7 @@ func (ii InvertedIndex) Union(terms []string) (result []int) {
         result[i] = k
         i++
     }
+    sort.Ints(result)
     return
 }
 

@@ -1,4 +1,4 @@
-package indices
+package main
 
 import (
 	"bufio"
@@ -30,25 +30,36 @@ func (ki KGramIndex) BuildFromTextFile(filename string) {
 	for scanner.Scan() {
 		line := scanner.Text()
 		docID++
-		title := strings.Split(line, ":")[0] // Change this!
-		ki.addWordToPostingsList(title)
+		for _, token := range Tokenize(line) {
+			ki.addWordToPostingsList(token)
+		}
 	}
 	if err := scanner.Err(); err != nil {
 		log.Fatal(err)
 	}
 }
 
-func (ki KGramIndex) addWordToPostingsList(word string) {
-	m := buildKGrams(word, ki.k)
+func (ki KGramIndex) addWordToPostingsList(token string) {
+	m := BuildKGrams(token, ki.k)
 	for _, gram := range m {
 		pList := ki.PostingsLists[gram]
-		ki.PostingsLists[gram] = append(pList, word)
+		if !matchInArray(pList, token) {
+			ki.PostingsLists[gram] = append(pList, token)
+		}
 	}
 }
 
-func buildKGrams(str string, k int) (grams []string) {
-	str = strings.ToLower(StripPunctuation(str))
-	if len(str) < k {
+func matchInArray(arr []string, value string) bool {
+	for _, v := range arr {
+		if v == value {
+			return true
+		}
+	}
+	return false
+}
+
+func BuildKGrams(str string, k int) (grams []string) {
+	if len(str) < k - 1{
 		grams = []string{str}
 		return
 	}
@@ -67,10 +78,32 @@ func buildKGrams(str string, k int) (grams []string) {
 func (ki KGramIndex) KGramOverlap(q string) (count map[string]int) {
 	// Finds the number of overlapping k-grams between the query and terms in the postings list.
 	count = make(map[string]int)
-	grams := buildKGrams(q, ki.k)
+	grams := BuildKGrams(q, ki.k)
 	for _, g := range grams {
 		for _, t := range ki.PostingsLists[g] {
 			count[t]++
+		}
+	}
+	return
+}
+
+func (ki KGramIndex) KGramMatch(q string) (terms []string) {
+	// Find all terms in the posting list that contains each of the k-grams.
+	count := make(map[string]int)
+	grams := BuildKGrams(q, ki.k)
+	wcGramCount := 0
+	for _, g := range grams {
+		if strings.Contains(g, "*") || strings.Contains(g, "?"){
+			wcGramCount++
+			continue
+		}
+		for _, t := range ki.PostingsLists[g] {
+			count[t]++
+		}
+	}
+	for k, v := range count {
+		if v == len(grams) - wcGramCount {
+			terms = append(terms, k)
 		}
 	}
 	return
@@ -80,11 +113,10 @@ func lowerBoundOverlap(s1 string, s2 string, editDistance int, k int) int {
 	return max(len(s1), len(s2)) - 1 - (editDistance - 1) * k
 }
 
-func (ki KGramIndex) FuzzyQuery(q string) (terms []string) {
+func (ki KGramIndex) GetCloseTerms(q string, editDistance int) (terms []string) {
 	count := ki.KGramOverlap(q)
-	editDistance := 2
 	for k, v := range count {
-		if v >= lowerBoundOverlap(q, k, editDistance, ki.k) {
+		if v >= lowerBoundOverlap(StripPunctuation(q), k, editDistance, ki.k) {
 			terms = append(terms, k)
 		}
 	}

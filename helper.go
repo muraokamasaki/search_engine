@@ -1,13 +1,27 @@
-package indices
+package main
 
-import "regexp"
+import (
+	"regexp"
+	"strings"
+)
 
 func Tokenize(text string) (tokens []string) {
 	// Remove all non-alphanumeric characters and split into tokens.
 	re := regexp.MustCompile(`[^a-zA-Z0-9]+`)
 	for _, t := range re.Split(text, -1) {
 		if t != "" {
-			tokens = append(tokens, t)
+			tokens = append(tokens, strings.ToLower(t))
+		}
+	}
+	return
+}
+
+func TokenizeWildcard(text string) (tokens []string) {
+	// Remove all non-alphanumeric characters and split into tokens.
+	re := regexp.MustCompile(`[^a-zA-Z0-9*?]+`)
+	for _, t := range re.Split(text, -1) {
+		if t != "" {
+			tokens = append(tokens, strings.ToLower(t))
 		}
 	}
 	return
@@ -16,7 +30,7 @@ func Tokenize(text string) (tokens []string) {
 func StripPunctuation(text string) string {
 	// Remove all non-alphanumeric and whitespace characters.
 	re := regexp.MustCompile(`[^a-zA-Z0-9 ]+`)
-	return re.ReplaceAllString(text, "")
+	return re.ReplaceAllString(strings.ToLower(text), "")
 }
 
 func EditDistance(s1 string, s2 string) int {
@@ -46,32 +60,31 @@ func EditDistance(s1 string, s2 string) int {
 	return m[len(s1)][len(s2)]
 }
 
-func PrefixEditDistance(s1 string, s2 string, d int) int {
-	// Computes Prefix Edit Distance where len(s1) << len(s2) and PED(s1, s2) <= d.
+func WildcardMatch(pattern string, str string) bool {
+	// Test a wildcard pattern against an input string.
 	// Initialize empty 2-d array
-	m := make([][]int, len(s1)+1)
-	_m := make([]int, (len(s1)+1) * (len(s1)+d+1))
+	m := make([][]bool, len(pattern)+1)
+	_m := make([]bool, (len(pattern)+1) * (len(str)+1))
 	for i := range m {
-		m[i], _m = _m[:len(s1)+d+1], _m[len(s1)+d+1:]
+		m[i], _m = _m[:len(str)+1], _m[len(str)+1:]
 	}
-	// Calculate levenshtein distance
-	for i := 1; i <= len(s1); i++ {
-		m[i][0] = i
+	m[0][0] = true
+	for i := 1; i <= len(pattern); i++ {
+		m[i][0] = pattern[i-1] == '*' && m[i-1][0]
 	}
-	for j := 1; j <= len(s1) + d; j++ {
-		m[0][j] = j
-	}
-	for i := 1; i <= len(s1); i++ {
-		for j := 1; j <= len(s1) + d; j++ {
-			c := min(m[i-1][j], m[i][j-1]) + 1
-			if s1[i-1] == s2[j-1] {
-				m[i][j] = min(m[i-1][j-1], c)
+	for i := 1; i <= len(pattern); i++ {
+		for j := 1; j <= len(str); j++ {
+			if pattern[i-1] == str[j-1] || pattern[i-1] == '?' {
+				m[i][j] = m[i-1][j-1]
+			} else if pattern[i-1] == '*' {
+				m[i][j] = m[i][j-1] || m[i-1][j]
 			} else {
-				m[i][j] = min(m[i-1][j-1] + 1, c)
+				// pattern[i-1] != str[j-1]
+				m[i][j] = false
 			}
 		}
 	}
-	return min(m[len(s1)]...)
+	return m[len(pattern)][len(str)]
 }
 
 func min(a ...int) (m int) {

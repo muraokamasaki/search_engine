@@ -1,4 +1,4 @@
-package indices
+package main
 
 import (
 	"sort"
@@ -7,15 +7,38 @@ import (
 
 func TestTokenize(t *testing.T) {
 	pairs := []struct {
-		str string
+		str   string
 		token []string
 	}{
-		{"Test string.", []string{"Test", "string"}},
-		{"I'm 23 years old.", []string{"I", "m", "23", "years", "old"}},
+		{"Test string.", []string{"test", "string"}},
+		{"I'm 23 years old.", []string{"i", "m", "23", "years", "old"}},
 		{"3d!e-fg.", []string{"3d", "e", "fg"}},
 	}
 	for _, pair := range pairs {
 		tok := Tokenize(pair.str)
+		if len(tok) == len(pair.token) {
+			for i := range tok {
+				if tok[i] != pair.token[i] {
+					t.Errorf("Wrong token: Got %s, Wanted %s.", tok[i], pair.token[i])
+				}
+			}
+		} else {
+			t.Errorf("Different number of token: Got %d, Wanted %d.", len(tok), len(pair.token))
+		}
+	}
+}
+
+func TestTokenizeWildcard(t *testing.T) {
+	pairs := []struct {
+		str string
+		token []string
+	}{
+		{"Test string.", []string{"test", "string"}},
+		{"W?ld*rd.", []string{"w?ld*rd"}},
+		{"*me ?? *.", []string{"*me", "??", "*"}},
+	}
+	for _, pair := range pairs {
+		tok := TokenizeWildcard(pair.str)
 		if len(tok) == len(pair.token) {
 			for i := range tok {
 				if tok[i] != pair.token[i] {
@@ -82,20 +105,27 @@ func TestEditDistance(t *testing.T) {
 	}
 }
 
-func TestPrefixEditDistance(t *testing.T) {
+func TestWildcardMatch(t *testing.T) {
 	pairs := []struct{
 		str []string
-		answer int
+		answer bool
 	}{
-		{[]string{"uni", "university"}, 0},
-		{[]string{"tome", "tomorrow"}, 1},
-		{[]string{"time", "tomorrow"}, 2},
-		{[]string{"", "world"}, 0},
+		{[]string{"time", "time"}, true},
+		{[]string{"tome", "time"}, false},
+		{[]string{"t?me", "time"}, true},
+		{[]string{"t?e", "time"}, false},
+		{[]string{"?ime", "time"}, true},
+		{[]string{"t*e", "time"}, true},
+		{[]string{"t*", "time"}, true},
+		{[]string{"*e", "time"}, true},
+		{[]string{"t*er", "time"}, false},
+		{[]string{"*m*", "time"}, true},
+		{[]string{"*m?", "time"}, true},
 	}
 	for _, pair := range pairs {
-		ans := PrefixEditDistance(pair.str[0], pair.str[1], 2)
+		ans := WildcardMatch(pair.str[0], pair.str[1])
 		if pair.answer != ans {
-			t.Errorf("Wrong answer: Got %d, Wanted %d.", ans, pair.answer)
+			t.Errorf("Pattern: %s, String: %s. Got %v, Wanted %v.", pair.str[0], pair.str[1], ans, pair.answer)
 		}
 	}
 }
@@ -128,6 +158,7 @@ func TestIntersectPair(t *testing.T) {
 		{[]int{1, 2, 3}, []int{}, []int{}},
 		{[]int{1, 2, 3}, []int{4, 5, 6}, []int{}},
 		{[]int{1}, []int{1}, []int{1}},
+		{[]int{}, []int{1, 2, 3}, []int{}},
 	}
 	for _, pair := range pairs {
 		res := IntersectPosting(pair.plist1, pair.plist2)
@@ -179,9 +210,9 @@ func TestInvertedIndex_Union(t *testing.T) {
 
 func SetUpKGramIndex(k int) (ki *KGramIndex) {
 	ki = NewKGramIndex(k)
-	ki.addWordToPostingsList("Hello world.")
-	ki.addWordToPostingsList("Helicopter.")
-	ki.addWordToPostingsList("Man-eating sharks!")
+	ki.addWordToPostingsList("hello")
+	ki.addWordToPostingsList("helicopter")
+	ki.addWordToPostingsList("man")
 	return
 }
 
@@ -191,12 +222,13 @@ func TestBuildKGrams(t *testing.T) {
 		k int
 		grams []string
 	}{
-		{"Te-st str.", 3, []string{"$$t", "$te", "tes", "est", "st ", "t s", " st", "str", "tr$", "r$$"}},
-		{"I'm 90lbs", 3, []string{"$$i", "$im", "im ", "m 9", " 90", "90l", "0lb", "lbs", "bs$", "s$$"}},
-		{"Hi!!", 3, []string{"hi"}},
+		{"hello", 3, []string{"$$h", "$he", "hel", "ell", "llo", "lo$", "o$$"}},
+		{"hi", 3, []string{"$$h", "$hi", "hi$", "i$$"}},
+		{"i", 3, []string{"i"}},
+
 	}
 	for _, pair := range pairs {
-		gr := buildKGrams(pair.str, pair.k)
+		gr := BuildKGrams(pair.str, pair.k)
 		if len(gr) == len(pair.grams) {
 			sort.Strings(gr)
 			sort.Strings(pair.grams)
@@ -217,10 +249,11 @@ func TestKGramIndex_KGramOverlap(t *testing.T) {
 		query string
 		count map[string]int
 	}{
-		{"hello", map[string]int{"Hello world.": 5, "Helicopter.": 3}},
-		{"Help", map[string]int{"Hello world.": 3, "Helicopter.": 3}},
-		{"World", map[string]int{"Hello world.": 5}},
-		{"Maneating", map[string]int{"Man-eating sharks!": 9}},
+		{"hello", map[string]int{"hello": 7, "helicopter": 3}},
+		{"help", map[string]int{"hello": 3, "helicopter": 3}},
+		{"man", map[string]int{"man": 5}},
+		{"an", map[string]int{"man": 2}},
+		{"a", map[string]int{}},
 	}
 	for _, pair := range pairs {
 		c := ki.KGramOverlap(pair.query)
@@ -230,6 +263,32 @@ func TestKGramIndex_KGramOverlap(t *testing.T) {
 		for k, v := range c {
 			if pair.count[k] != v {
 				t.Errorf("Wrong k-grams: Got %v, Wanted %v", c, pair.count)
+			}
+		}
+	}
+}
+
+func TestKGramIndex_KGramMatch(t *testing.T) {
+	ki := SetUpKGramIndex(3)
+	pairs := []struct{
+		q string
+		terms []string
+	}{
+		{"he*", []string{"hello", "helicopter"}},
+		{"hell*", []string{"hello"}},
+		{"m?n", []string{"man"}},
+		{"*n", []string{"man"}},
+	}
+	for _, pair := range pairs {
+		c := ki.KGramMatch(pair.q)
+		if len(c) != len(pair.terms) {
+			t.Errorf("Wrong number of documents: Got %v, Wanted %v.", c, pair.terms)
+		}
+		sort.Strings(c)
+		sort.Strings(pair.terms)
+		for k, v := range c {
+			if pair.terms[k] != v {
+				t.Errorf("Wrong k-grams: Got %v, Wanted %v", c, pair.terms)
 			}
 		}
 	}
