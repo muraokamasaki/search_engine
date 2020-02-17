@@ -98,7 +98,7 @@ func TestSearcher_TermQuery(t *testing.T) {
 	}
 	s := SetUpSearcher()
 	for _, pair := range pairs {
-		res := s.TermQuery(pair.query)
+		res := s.TermsQuery(pair.query)
 		if len(res) == len(pair.results) {
 			for i := range res {
 				if res[i] != pair.results[i] {

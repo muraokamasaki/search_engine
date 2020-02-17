@@ -5,6 +5,7 @@ import (
 	"strings"
 )
 
+// The Searcher type represents a search engine.
 type Searcher struct {
 	ii InvertedIndex
 	ki KGramIndex
@@ -14,12 +15,16 @@ func NewSearcher(k int) *Searcher {
 	return &Searcher{ii: *NewInvertedIndex(), ki: *NewKGramIndex(k)}
 }
 
-func (s Searcher) TermQuery(query string) (results []int) {
-	// Tokenize the query term and look for a document which contains all of the tokens.
-	results = s.ii.Intersect(Tokenize(query))
+// Query methods that our Searcher implements.
+
+// Filters documents that contain all of the provided terms.
+func (s Searcher) TermsQuery(query string) (results []int) {
+	results = s.ii.Intersect(tokenize(query))
 	return
 }
 
+// Filters documents based on the boolean retrieval model.
+// Only supports AND (&&) and OR (||).
 func (s Searcher) BooleanQuery(query string) (results []int, err error) {
 	// Allows boolean operations between terms. Terms should only consist of a single word.
 	var queryTerms []string
@@ -29,7 +34,7 @@ func (s Searcher) BooleanQuery(query string) (results []int, err error) {
 	if intersectFlag && unionFlag {
 		queryTerms = shuntingYard(parseInfix(query))
 		var stack [][]int
-		for i := 0; i < len(queryTerms); i++ { // Parse postfix expression tree.
+		for i := 0; i < len(queryTerms); i++ {
 			if queryTerms[i] == "&&" {
 				if len(stack) >= 2 {
 					stack[len(stack)-2] = IntersectPosting(stack[len(stack)-1], stack[len(stack)-2])
@@ -47,7 +52,7 @@ func (s Searcher) BooleanQuery(query string) (results []int, err error) {
 					break
 				}
 			}  else {
-				stack = append(stack, s.ii.Intersect([]string{queryTerms[i]}))
+				stack = append(stack, s.ii.PostingsList(queryTerms[i]))
 			}
 		}
 		if len(stack) == 1 {
@@ -63,6 +68,7 @@ func (s Searcher) BooleanQuery(query string) (results []int, err error) {
 	return
 }
 
+// Parses the expression into a set of tokens. Assumes that the expression is written in the infix notation.
 func parseInfix(expr string) (output []string) {
 	for _, i := range splitTrimToLower(expr, "&&") {
 		for _, j := range splitTrimToLower(i, "||") {
@@ -76,31 +82,36 @@ func parseInfix(expr string) (output []string) {
 	return
 }
 
+// Reorders the tokens from infix notation to a postfix notation.
+// Partial implementation of Shunting-yard algorithm, which only considers left associative, binary operators.
 func shuntingYard(tokens []string) (output []string) {
-	// Partial implementation of Shunting-yard algorithm, which only considers left associative, binary operators.
-	orderOfOperations := map[string]int{"||": 1, "&&": 2} // Larger value implies higher precedence; Values are arbitrary.
-	var operators []string
+	// orderOfOperations is a map containing operations used in our BooleanQuery.
+	// Larger value implies higher precedence; Values are arbitrary.
+	orderOfOperations := map[string]int{"||": 1, "&&": 2}
+	var operatorStack []string
 	for _, token := range tokens {
 		if _, ok := orderOfOperations[token]; !ok {
 			output = append(output, token)
 		} else {
-			for i := len(operators) - 1; i>= 0; i-- {
-				if orderOfOperations[operators[i]] >= orderOfOperations[token] { // If equal, assumes token is left associative.
-					output = append(output, operators[i])
-					operators = operators[:i]
+			for i := len(operatorStack) - 1; i>= 0; i-- {
+				// If equal, assumes token is left associative.
+				if orderOfOperations[operatorStack[i]] >= orderOfOperations[token] {
+					output = append(output, operatorStack[i])
+					operatorStack = operatorStack[:i]
 				} else {
 					break
 				}
 			}
-			operators = append(operators, token)
+			operatorStack = append(operatorStack, token)
 		}
 	}
-	for i := len(operators) - 1; i>= 0; i-- {
-		output = append(output, operators[i])
+	for i := len(operatorStack) - 1; i>= 0; i-- {
+		output = append(output, operatorStack[i])
 	}
 	return
 }
 
+// Splits the input string with the provided token. Trim and lowercase the output tokens.
 func splitTrimToLower(str string, split string) (out []string) {
 	out = strings.Split(str, split)
 	for i := range out {
@@ -109,38 +120,42 @@ func splitTrimToLower(str string, split string) (out []string) {
 	return
 }
 
+// Filters documents that contain all of the provided terms.
+// Each term permits a spelling correction to terms within a certain edit distance.
 func (s Searcher) FuzzyQuery(query string) (results []int) {
-	var fuzziness int
-	for _, queryToken := range Tokenize(query) {
-		if len(queryToken) <= 2 {
-			fuzziness = 0
-		} else if len(queryToken) <= 5 {
-			fuzziness = 1
-		} else {
-			fuzziness = 2
-		}
-		terms := s.ki.GetCloseTerms(queryToken, fuzziness)
-		var partialResult []string
-		for _, res := range terms {
-			if EditDistance(queryToken, res) <= fuzziness {
-				partialResult = append(partialResult, res)
-			}
-		}
+	for _, queryTerm := range tokenize(query) {
+		fuzziness := getFuzziness(queryTerm)
+		terms := s.ki.GetCloseTerms(queryTerm, fuzziness)
+
 		if len(results) == 0 {
-			results = s.ii.Union(partialResult)
+			results = s.ii.Union(terms)
 		} else {
-			results = IntersectPosting(results, s.ii.Union(partialResult))
+			results = IntersectPosting(results, s.ii.Union(terms))
 		}
 	}
 	return
 }
 
+// Edit distance for each term is based on the length of the term.
+func getFuzziness(str string) (fuzziness int) {
+	if len(str) <= 2 {
+		fuzziness = 0
+	} else if len(str) <= 5 {
+		fuzziness = 1
+	} else {
+		fuzziness = 2
+	}
+	return
+}
+
+// Filters documents that contain all of the provided terms.
+// Terms can contain the characters `?` and/or `*` which expands into one or more terms.
 func (s Searcher) WildcardQuery(query string) (results []int) {
-	for _, queryToken := range TokenizeWildcard(query) {
-		terms := s.ki.KGramMatch(queryToken)
+	for _, queryTerm := range tokenizeWildcard(query) {
+		terms := s.ki.KGramMatch(queryTerm)
 		var partialResult  []string
 		for _, res := range terms {
-			if WildcardMatch(queryToken, res) {
+			if wildcardMatch(queryTerm, res) {
 				partialResult = append(partialResult, res)
 			}
 		}

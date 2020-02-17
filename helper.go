@@ -5,8 +5,8 @@ import (
 	"strings"
 )
 
-func Tokenize(text string) (tokens []string) {
-	// Remove all non-alphanumeric characters and split into tokens.
+// Remove all non-alphanumeric characters and split into tokens.
+func tokenize(text string) (tokens []string) {
 	re := regexp.MustCompile(`[^a-zA-Z0-9]+`)
 	for _, t := range re.Split(text, -1) {
 		if t != "" {
@@ -16,8 +16,8 @@ func Tokenize(text string) (tokens []string) {
 	return
 }
 
-func TokenizeWildcard(text string) (tokens []string) {
-	// Remove all non-alphanumeric characters and split into tokens.
+// Remove all non-alphanumeric and wildcard characters and split into tokens.
+func tokenizeWildcard(text string) (tokens []string) {
 	re := regexp.MustCompile(`[^a-zA-Z0-9*?]+`)
 	for _, t := range re.Split(text, -1) {
 		if t != "" {
@@ -27,20 +27,14 @@ func TokenizeWildcard(text string) (tokens []string) {
 	return
 }
 
-func StripPunctuation(text string) string {
-	// Remove all non-alphanumeric and whitespace characters.
-	re := regexp.MustCompile(`[^a-zA-Z0-9 ]+`)
-	return re.ReplaceAllString(strings.ToLower(text), "")
-}
-
-func EditDistance(s1 string, s2 string) int {
+// Calculates edit (levenshtein) distance between two strings.
+func editDistance(s1 string, s2 string) int {
 	// Initialize empty 2-d array
 	m := make([][]int, len(s1)+1)
 	_m := make([]int, (len(s1)+1) * (len(s2)+1))
 	for i := range m {
 		m[i], _m = _m[:len(s2)+1], _m[len(s2)+1:]
 	}
-	// Calculate levenshtein distance
 	for i := 1; i <= len(s1); i++ {
 		m[i][0] = i
 	}
@@ -60,8 +54,8 @@ func EditDistance(s1 string, s2 string) int {
 	return m[len(s1)][len(s2)]
 }
 
-func WildcardMatch(pattern string, str string) bool {
-	// Test a wildcard pattern against an input string.
+// Test if the input string matches the wildcard pattern.
+func wildcardMatch(pattern string, str string) bool {
 	// Initialize empty 2-d array
 	m := make([][]bool, len(pattern)+1)
 	_m := make([]bool, (len(pattern)+1) * (len(str)+1))
