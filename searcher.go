@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"sort"
 	"strings"
 )
 
@@ -166,4 +167,52 @@ func (s Searcher) WildcardQuery(query string) (results []int) {
 		}
 	}
 	return
+}
+
+// Stores a id, score pair.
+// Implements sort.Interface for sorting by descending score.
+type ResultList struct {
+	ids []int
+	scores []float64
+}
+
+func (r ResultList) Len() int { return len(r.ids) }
+func (r ResultList) Swap(i, j int) {
+	r.scores[i], r.scores[j] = r.scores[j], r.scores[i]
+	r.ids[i], r.ids[j] = r.ids[j], r.ids[i]
+}
+func (r ResultList) Less(i, j int) bool { return r.scores[i] > r.scores[j] }
+
+// Returns a ranked list of results sorted by cosine similarity using the vector space model.
+// Scores are calculated using tf-idf and document length normalization.
+func (s Searcher) VectorSpaceQuery(query string) (results []int) {
+	resList := &ResultList{}
+	for _, queryTerm := range tokenize(query) {
+		for _, docID := range s.ii.PostingsList(queryTerm) {
+			resultsIndex := findIndexInArray(resList.ids, docID)
+			// Calculate tf-idf score
+			score := float64(s.ii.TermFrequency(queryTerm, docID)) * s.ii.InverseDocumentFrequency(queryTerm)
+			if resultsIndex == -1 {
+				// Document ID not yet in results.
+				resList.ids = append(resList.ids, docID)
+				resList.scores = append(resList.scores, score)
+			} else {
+				resList.scores[resultsIndex] += score
+			}
+		}
+	}
+	// TODO: length normalization.
+	sort.Sort(resList)
+	results = resList.ids
+	return
+}
+
+// Returns the index of the int if it exists in the array, else returns -1.
+func findIndexInArray(arr []int, value int) int {
+	for i, v := range arr {
+		if v == value {
+			return i
+		}
+	}
+	return -1
 }

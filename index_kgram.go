@@ -25,11 +25,9 @@ func (ki KGramIndex) BuildFromTextFile(filename string) {
 	}
 	defer f.Close()
 
-	docID := 0
 	scanner := bufio.NewScanner(f)
 	for scanner.Scan() {
 		line := scanner.Text()
-		docID++
 		for _, token := range tokenize(line) {
 			ki.addWordToPostingsList(token)
 		}

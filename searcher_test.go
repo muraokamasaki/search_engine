@@ -193,3 +193,30 @@ func TestSearcher_FuzzyQuery(t *testing.T) {
 		}
 	}
 }
+
+func TestSearcher_VectorSpaceQuery(t *testing.T) {
+	pairs := []struct{
+		query string
+		results []int
+	}{
+		{"cohen", []int{1}},
+		{"latent semantic", []int{2}},
+		{"statistic that", []int{1, 2}},
+		{"matrix communication channel", []int{3, 2}},
+
+
+	}
+	s := SetUpSearcher()
+	for _, pair := range pairs {
+		res := s.VectorSpaceQuery(pair.query)
+		if len(res) == len(pair.results) {
+			for i := range res {
+				if res[i] != pair.results[i] {
+					t.Errorf("Wrong id: Got %v, Wanted %v.", res, pair.results)
+				}
+			}
+		} else {
+			t.Errorf("Different number of results: Got %v, Wanted %v.", res, pair.results)
+		}
+	}
+}
