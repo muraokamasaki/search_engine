@@ -201,7 +201,9 @@ func (s Searcher) VectorSpaceQuery(query string) (results []int) {
 			}
 		}
 	}
-	// TODO: length normalization.
+	for i := range resList.ids {
+		resList.scores[i] /= docLength(resList.ids[i])
+	}
 	sort.Sort(resList)
 	results = resList.ids
 	return
@@ -215,4 +217,29 @@ func findIndexInArray(arr []int, value int) int {
 		}
 	}
 	return -1
+}
+
+// Returns a ranked list of results sorted by the Okapi BM25 algorithm.
+// Scores are calculated using tf-idf and document length normalization.
+func (s Searcher) BM25Query(query string, k1 float64, b float64) (results []int) {
+	resList := &ResultList{}
+	for _, queryTerm := range tokenize(query) {
+		for _, docID := range s.ii.PostingsList(queryTerm) {
+			resultsIndex := findIndexInArray(resList.ids, docID)
+			// Calculate BM25 score
+			tf := float64(s.ii.TermFrequency(queryTerm, docID))
+			idf := s.ii.InverseDocumentFrequency(queryTerm)
+			score :=  idf * (k1 + 1) * tf / (k1 * ((1 - b) + b * (docLength(docID) / averageDocLength())) + tf)
+			if resultsIndex == -1 {
+				// Document ID not yet in results.
+				resList.ids = append(resList.ids, docID)
+				resList.scores = append(resList.scores, score)
+			} else {
+				resList.scores[resultsIndex] += score
+			}
+		}
+	}
+	sort.Sort(resList)
+	results = resList.ids
+	return
 }
