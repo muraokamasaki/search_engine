@@ -10,10 +10,11 @@ import (
 type Searcher struct {
 	ii InvertedIndex
 	ki KGramIndex
+	docList DocumentList
 }
 
 func NewSearcher(k int) *Searcher {
-	return &Searcher{ii: *NewInvertedIndex(), ki: *NewKGramIndex(k)}
+	return &Searcher{ii: *NewInvertedIndex(), ki: *NewKGramIndex(k), docList: DocumentList{}}
 }
 
 // Query methods that our Searcher implements.
@@ -202,7 +203,7 @@ func (s Searcher) VectorSpaceQuery(query string) (results []int) {
 		}
 	}
 	for i := range resList.ids {
-		resList.scores[i] /= docLength(resList.ids[i])
+		resList.scores[i] /= float64(s.docList.DocLength(resList.ids[i]))
 	}
 	sort.Sort(resList)
 	results = resList.ids
@@ -229,7 +230,7 @@ func (s Searcher) BM25Query(query string, k1 float64, b float64) (results []int)
 			// Calculate BM25 score
 			tf := float64(s.ii.TermFrequency(queryTerm, docID))
 			idf := s.ii.InverseDocumentFrequency(queryTerm)
-			score :=  idf * (k1 + 1) * tf / (k1 * ((1 - b) + b * (docLength(docID) / averageDocLength())) + tf)
+			score :=  idf * (k1 + 1) * tf / (k1 * ((1 - b) + b * (float64(s.docList.DocLength(docID)) / s.docList.averageDocumentLength())) + tf)
 			if resultsIndex == -1 {
 				// Document ID not yet in results.
 				resList.ids = append(resList.ids, docID)
@@ -242,4 +243,17 @@ func (s Searcher) BM25Query(query string, k1 float64, b float64) (results []int)
 	sort.Sort(resList)
 	results = resList.ids
 	return
+}
+
+// Functions used to index documents.
+
+// Builds the searcher from a text file where each document exists on a single line.
+func (s *Searcher) BuildFromTextFile(filename string) {
+	readLinesFromTextFile(filename, func(document string) {
+		docID := s.docList.addToDocumentList(document)
+		for _, token := range tokenize(document) {
+			s.ii.addIDToPostingsList(token, docID)
+			s.ki.addWordToPostingsList(token)
+		}
+	})
 }

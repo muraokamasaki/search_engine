@@ -1,9 +1,6 @@
 package main
 
 import (
-	"bufio"
-	"log"
-	"os"
 	"strings"
 )
 
@@ -17,28 +14,8 @@ func NewKGramIndex(k int) *KGramIndex {
 	return &KGramIndex{k: k, postingsLists: make(map[string][]string)}
 }
 
-// Builds the k-gram index from a text file where each document exists on a single line.
-func (ki KGramIndex) BuildFromTextFile(filename string) {
-	f, err := os.Open(filename)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer f.Close()
-
-	scanner := bufio.NewScanner(f)
-	for scanner.Scan() {
-		line := scanner.Text()
-		for _, token := range tokenize(line) {
-			ki.addWordToPostingsList(token)
-		}
-	}
-	if err := scanner.Err(); err != nil {
-		log.Fatal(err)
-	}
-}
-
 // Builds the k-gram index for a term.
-func (ki KGramIndex) addWordToPostingsList(term string) {
+func (ki *KGramIndex) addWordToPostingsList(term string) {
 	m := buildKGrams(term, ki.k)
 	for _, gram := range m {
 		pList := ki.postingsLists[gram]

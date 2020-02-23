@@ -1,10 +1,7 @@
 package main
 
 import (
-    "bufio"
-    "log"
     "math"
-    "os"
     "sort"
 )
 
@@ -20,31 +17,9 @@ func NewInvertedIndex() *InvertedIndex {
     return &InvertedIndex{postingsLists: make(map[string][]int), docTermFrequency: make(map[string][]int)}
 }
 
-// Builds the inverted index from a text file where each document exists on a single line.
-func (ii InvertedIndex) BuildFromTextFile(filename string) {
-    f, err := os.Open(filename)
-    if err != nil {
-        log.Fatal(err)
-    }
-    defer f.Close()
-
-    docID := 0
-    scanner := bufio.NewScanner(f)
-    for scanner.Scan() {
-        line := scanner.Text()
-        docID++
-        for _, word := range tokenize(line) {
-            ii.addIDToPostingsList(word, docID)
-        }
-    }
-    if err := scanner.Err(); err != nil {
-        log.Fatal(err)
-    }
-}
-
 // Adds the ID to the postings list of a term in the inverted index.
 // Assumes that terms are added in increasing order of docID.
-func (ii InvertedIndex) addIDToPostingsList(term string, docID int) {
+func (ii *InvertedIndex) addIDToPostingsList(term string, docID int) {
     if len(term) > 0 {
         pList := ii.PostingsList(term)
         if len(pList) == 0 || pList[len(pList) - 1] != docID {
