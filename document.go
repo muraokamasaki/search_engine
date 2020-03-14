@@ -11,10 +11,10 @@ import (
 )
 
 type Document struct {
-	id int
-	title string
-	body string
-	URL string
+	id    int
+	Title string
+	Body  string
+	URL   string
 }
 
 // In-memory struct for fast access of lengths of document needed for document length normalization.
@@ -51,7 +51,7 @@ func wordCount(document string) int {
 // Defines functions that consumes documents.
 type documentFn func(document Document)
 
-// Reads through a CSV file of columns 'id', 'title' and 'body' and applies a function to each document.
+// Reads through a CSV file of columns 'id', 'Title', 'Body' and 'URL' and applies a function to each document.
 func readDocumentFromCSV(filename string, fn documentFn) {
 	f, err := os.Open(filename)
 	if err != nil {
@@ -74,14 +74,15 @@ func readDocumentFromCSV(filename string, fn documentFn) {
 			log.Fatal(err)
 		}
 		fn(Document{
-			id:		id,
-			title: doc[1],
-			body:  doc[2],
+			id:    id,
+			Title: doc[1],
+			Body:  doc[2],
+			URL: doc[3],
 		})
 	}
 }
 
-// Retrieve a list of documents from a CSV with columns 'id', 'title', 'body'.
+// Retrieve a list of documents from a CSV with columns 'id', 'Title', 'Body' and 'URL.
 func getDocumentFromCSV(filename string, ids []int) (resultsList []Document) {
 	resultsList = make([]Document, len(ids))
 
@@ -118,9 +119,10 @@ func getDocumentFromCSV(filename string, ids []int) (resultsList []Document) {
 				idx++
 			}
 			resultsList[idx] = Document{
-				id:		id,
-				title: doc[1],
-				body:  doc[2],
+				id:    id,
+				Title: doc[1],
+				Body:  doc[2],
+				URL: doc[3],
 			}
 			idPointer++
 		}
