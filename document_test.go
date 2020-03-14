@@ -21,36 +21,51 @@ func TestWordCount(t *testing.T) {
 	}
 }
 
-func setUpDocumentList() (docList *DocumentList) {
-	docList = &DocumentList{}
-	docList.addToDocumentList("My name is John.")
-	docList.addToDocumentList("  to be  or not    to be")
-	docList.addToDocumentList("Document A: This is a hat. This is a cat.")
+func setUpDocumentLengths() (docList *DocumentLengths) {
+	docList = &DocumentLengths{}
+	docList.addDocumentLength("My name is John.")
+	docList.addDocumentLength("  to be  or not    to be")
+	docList.addDocumentLength("Document A: This is a hat. This is a cat.")
 	return
 }
 
 func TestDocumentList_DocLength(t *testing.T) {
 	pairs := []struct{
-		idx int
+		id int
 		length int
 	}{
-		{0, 4},
-		{1, 6},
-		{2, 10},
+		{1, 4},
+		{2, 6},
+		{3, 10},
 	}
-	docList := setUpDocumentList()
+	docLen := setUpDocumentLengths()
 	for _, pair := range pairs {
-		length := docList.DocLength(pair.idx)
+		length := docLen.DocLength(pair.id)
 		if length != pair.length {
-			t.Errorf("Wrong length for index %d: Got %d, Wanted %d.", pair.idx, length, pair.length)
+			t.Errorf("Wrong length for index %d: Got %d, Wanted %d.", pair.id, length, pair.length)
 		}
 	}
 }
 
 func TestDocumentList_AverageDocumentLength(t *testing.T) {
-	docList := setUpDocumentList()
+	docLen := setUpDocumentLengths()
 	avgLen := (4 + 6 + 10) / 3.0
-	if docList.averageDocumentLength() != avgLen {
-		t.Errorf("Wrong average length: Got %f, Wanted %f.", docList.averageDocumentLength(), avgLen)
+	if docLen.averageDocumentLength() != avgLen {
+		t.Errorf("Wrong average length: Got %f, Wanted %f.", docLen.averageDocumentLength(), avgLen)
+	}
+}
+
+func TestGetDocumentFromCSV(t *testing.T) {
+	resultList := getDocumentFromCSV("example.csv", []int{2, 1, 3})
+	wanted := []string{"Latent semantic analysis", "Cohen's kappa", "Code-division multiple access"}
+	if resultList[0].title != wanted[0] && resultList[1].title != wanted[1] && resultList[2].title != wanted[2] {
+		t.Errorf("Wrong document titles. Got %v, Wanted %v.", resultList, wanted)
+	}
+	// Test getting non-existent document.
+	resultList = getDocumentFromCSV("example.csv", []int{4})
+	for _, result := range resultList {
+		if result.id != 0 && result.title != "" && result.body != "" {
+			t.Errorf("Retrived wrong document. Got %v, Wanted empty document", result)
+		}
 	}
 }

@@ -10,14 +10,24 @@ import (
 type Searcher struct {
 	ii InvertedIndex
 	ki KGramIndex
-	docList DocumentList
+	docLen DocumentLengths
 }
 
 func NewSearcher(k int) *Searcher {
-	return &Searcher{ii: *NewInvertedIndex(), ki: *NewKGramIndex(k), docList: DocumentList{}}
+	return &Searcher{ii: *NewInvertedIndex(), ki: *NewKGramIndex(k), docLen: DocumentLengths{}}
 }
 
 // Query methods that our Searcher implements.
+// Defines query methods.
+type queryFunc func(string) []int
+
+// Main query method
+func (s Searcher) Query(query string, fn queryFunc) []Document {
+	resultIDs := fn(query)
+	// TODO: Make for general document storage
+	return getDocumentFromCSV("example.csv", resultIDs)
+}
+
 
 // Filters documents that contain all of the provided terms.
 func (s Searcher) TermsQuery(query string) (results []int) {
@@ -172,22 +182,22 @@ func (s Searcher) WildcardQuery(query string) (results []int) {
 
 // Stores a id, score pair.
 // Implements sort.Interface for sorting by descending score.
-type ResultList struct {
+type ScoringList struct {
 	ids []int
 	scores []float64
 }
 
-func (r ResultList) Len() int { return len(r.ids) }
-func (r ResultList) Swap(i, j int) {
+func (r ScoringList) Len() int { return len(r.ids) }
+func (r ScoringList) Swap(i, j int) {
 	r.scores[i], r.scores[j] = r.scores[j], r.scores[i]
 	r.ids[i], r.ids[j] = r.ids[j], r.ids[i]
 }
-func (r ResultList) Less(i, j int) bool { return r.scores[i] > r.scores[j] }
+func (r ScoringList) Less(i, j int) bool { return r.scores[i] > r.scores[j] }
 
 // Returns a ranked list of results sorted by cosine similarity using the vector space model.
 // Scores are calculated using tf-idf and document length normalization.
 func (s Searcher) VectorSpaceQuery(query string) (results []int) {
-	resList := &ResultList{}
+	resList := &ScoringList{}
 	for _, queryTerm := range tokenize(query) {
 		for _, docID := range s.ii.PostingsList(queryTerm) {
 			resultsIndex := findIndexInArray(resList.ids, docID)
@@ -203,7 +213,7 @@ func (s Searcher) VectorSpaceQuery(query string) (results []int) {
 		}
 	}
 	for i := range resList.ids {
-		resList.scores[i] /= float64(s.docList.DocLength(resList.ids[i]))
+		resList.scores[i] /= float64(s.docLen.DocLength(resList.ids[i]))
 	}
 	sort.Sort(resList)
 	results = resList.ids
@@ -222,15 +232,17 @@ func findIndexInArray(arr []int, value int) int {
 
 // Returns a ranked list of results sorted by the Okapi BM25 algorithm.
 // Scores are calculated using tf-idf and document length normalization.
-func (s Searcher) BM25Query(query string, k1 float64, b float64) (results []int) {
-	resList := &ResultList{}
+func (s Searcher) BM25Query(query string) (results []int) {
+	k1 := 0.9
+	b := 0.4
+	resList := &ScoringList{}
 	for _, queryTerm := range tokenize(query) {
 		for _, docID := range s.ii.PostingsList(queryTerm) {
 			resultsIndex := findIndexInArray(resList.ids, docID)
 			// Calculate BM25 score
 			tf := float64(s.ii.TermFrequency(queryTerm, docID))
 			idf := s.ii.InverseDocumentFrequency(queryTerm)
-			score :=  idf * (k1 + 1) * tf / (k1 * ((1 - b) + b * (float64(s.docList.DocLength(docID)) / s.docList.averageDocumentLength())) + tf)
+			score :=  idf * (k1 + 1) * tf / (k1 * ((1 - b) + b * (float64(s.docLen.DocLength(docID)) / s.docLen.averageDocumentLength())) + tf)
 			if resultsIndex == -1 {
 				// Document ID not yet in results.
 				resList.ids = append(resList.ids, docID)
@@ -247,12 +259,18 @@ func (s Searcher) BM25Query(query string, k1 float64, b float64) (results []int)
 
 // Functions used to index documents.
 
-// Builds the searcher from a text file where each document exists on a single line.
-func (s *Searcher) BuildFromTextFile(filename string) {
-	readLinesFromTextFile(filename, func(document string) {
-		docID := s.docList.addToDocumentList(document)
-		for _, token := range tokenize(document) {
-			s.ii.addIDToPostingsList(token, docID)
+// Builds the searcher from a csv of columns 'id', 'title', 'body'.
+func (s *Searcher) BuildFromCSV(filename string) {
+	readDocumentFromCSV(filename, func(doc Document) {
+		// Only take word count of body.
+		s.docLen.addDocumentLength(doc.body)
+		// Adds words in title and body to index.
+		for _, token := range tokenize(doc.title) {
+			s.ii.addIDToPostingsList(token, doc.id)
+			s.ki.addWordToPostingsList(token)
+		}
+		for _, token := range tokenize(doc.body) {
+			s.ii.addIDToPostingsList(token, doc.id)
 			s.ki.addWordToPostingsList(token)
 		}
 	})
