@@ -1,7 +1,6 @@
 package main
 
 import (
-	"fmt"
 	"sort"
 	"strings"
 )
@@ -37,7 +36,7 @@ func (s Searcher) TermsQuery(query string) (results []int) {
 
 // Filters documents based on the boolean retrieval model.
 // Only supports AND (&&) and OR (||).
-func (s Searcher) BooleanQuery(query string) (results []int, err error) {
+func (s Searcher) BooleanQuery(query string) (results []int) {
 	// Allows boolean operations between terms. Terms should only consist of a single word.
 	var queryTerms []string
 	intersectFlag := strings.Contains(query, "&&")
@@ -52,7 +51,7 @@ func (s Searcher) BooleanQuery(query string) (results []int, err error) {
 					stack[len(stack)-2] = IntersectPosting(stack[len(stack)-1], stack[len(stack)-2])
 					stack = stack[:len(stack)-1]
 				} else {
-					err = fmt.Errorf("not enough elements in stack: %v", stack)
+					stack = [][]int{}
 					break
 				}
 			} else if queryTerms[i] == "||" {
@@ -60,7 +59,7 @@ func (s Searcher) BooleanQuery(query string) (results []int, err error) {
 					stack[len(stack)-2] = UnionPosting(stack[len(stack)-1], stack[len(stack)-2])
 					stack = stack[:len(stack)-1]
 				} else {
-					err = fmt.Errorf("not enough elements in stack: %v", stack)
+					stack = [][]int{}
 					break
 				}
 			}  else {
@@ -69,8 +68,6 @@ func (s Searcher) BooleanQuery(query string) (results []int, err error) {
 		}
 		if len(stack) == 1 {
 			results = stack[0]
-		} else if len(stack) > 1 {
-			err = fmt.Errorf("stack is not empty: %v", stack)
 		}
 	} else if unionFlag {
 		results = s.ii.Union(splitTrimToLower(query, "||"))
@@ -259,17 +256,17 @@ func (s Searcher) BM25Query(query string) (results []int) {
 
 // Functions used to index documents.
 
-// Builds the searcher from a csv of columns 'id', 'title', 'body'.
+// Builds the searcher from a csv of columns 'id', 'Title', 'Body'.
 func (s *Searcher) BuildFromCSV(filename string) {
 	readDocumentFromCSV(filename, func(doc Document) {
-		// Only take word count of body.
-		s.docLen.addDocumentLength(doc.body)
-		// Adds words in title and body to index.
-		for _, token := range tokenize(doc.title) {
+		// Only take word count of Body.
+		s.docLen.addDocumentLength(doc.Body)
+		// Adds words in Title and Body to index.
+		for _, token := range tokenize(doc.Title) {
 			s.ii.addIDToPostingsList(token, doc.id)
 			s.ki.addWordToPostingsList(token)
 		}
-		for _, token := range tokenize(doc.body) {
+		for _, token := range tokenize(doc.Body) {
 			s.ii.addIDToPostingsList(token, doc.id)
 			s.ki.addWordToPostingsList(token)
 		}

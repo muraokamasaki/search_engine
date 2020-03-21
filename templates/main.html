@@ -1,0 +1,74 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.4.1/css/bootstrap.min.css" integrity="sha384-Vkoo8x4CGsO3+Hhxv8T/Q5PaXtkKtu6ug5TOeNV6gBiFeWPGFN9MuhOf23Q9Ifjh" crossorigin="anonymous">
+
+    <title>{{if .Query}} {{.Query}} {{else}} Search {{end}}</title>
+</head>
+<body>
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+    <div class="container">
+        <a class="navbar-brand" href="/">Search</a>
+    </div>
+</nav>
+<div class="container">
+    <br>
+    <form method="get">
+        <div class="form-row">
+            <div class="form-group col-md-5">
+                <label for="query" class="h2">Query</label>
+                <input type="text" id="query" class="form-control form-control-lg" name="q">
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group col-md-5">
+                <label for="search-alg">Search Algorithm</label>
+                <select class="form-control" id="search-alg" name="alg">
+                    <option>BM25</option>
+                    <option>Classic TF-IDF</option>
+                    <option>Boolean</option>
+                    <option>Terms</option>
+                    <option>Fuzzy</option>
+                    <option>Wildcard</option>
+                </select>
+
+            </div>
+        </div>
+    </form>
+    <br>
+    <table class="table">
+        {{range $val := .Results}}
+            <tr>
+                <td>
+                    <a href="{{.URL}}">{{.Title}}</a>
+                    <hr>
+                    <p>
+                        {{.Body}}
+                    </p>
+                </td>
+            </tr>
+        {{end}}
+    </table>
+    <nav aria-label="SERP">
+        <ul class="pagination">
+            <li class="page-item">
+                <a class="page-link" href="#">
+                    <span aria-hidden="true">&larr;</span>Previous
+                </a>
+            </li>
+            <li class="page-item active">
+                <span class="page-link">
+                    {{.Page}}<span class="sr-only">(current)</span>
+                </span>
+            </li>
+            <li class="page-item">
+                <a class="page-link" href="#">
+                    Next<span aria-hidden="true">&rarr;</span>
+                </a>
+            </li>
+        </ul>
+    </nav>
+</div>
+</body>
+</html>
