@@ -4,14 +4,33 @@ import (
 	"html/template"
 	"log"
 	"net/http"
+	"net/url"
 	"strconv"
 )
+
+const ResultsPerPage = 10
 
 type SERP struct {
 	Query string
 	Page int
 	Results []Document
-	SearchAlgorithms []queryFunc
+	NextURL string
+	PrevURL string
+}
+
+func paginateResult(results []Document, page int) (resSlice []Document) {
+	if len(results) >= (page - 1) * ResultsPerPage {
+		resSlice = results[(page - 1) * ResultsPerPage : min(page * ResultsPerPage, len(results))]
+	}
+	return
+}
+
+func changePageURL(u *url.URL, page int) string {
+	u, _ = url.Parse(u.String())
+	q := u.Query()
+	q.Set("page", strconv.Itoa(page))
+	u.RawQuery = q.Encode()
+	return u.String()
 }
 
 func (s Searcher) mapNameToFunc(funcName string) queryFunc {
@@ -37,11 +56,27 @@ func (s Searcher) queryHandler(w http.ResponseWriter, r *http.Request) {
 		searchAlgorithm = "BM25"  // Defaults to BM25
 	}
 	res := s.Query(queryString, s.mapNameToFunc(searchAlgorithm)) // js injections?
-	resultPage := &SERP{
+	resultSlice := paginateResult(res, page)
+
+	// Create URLs for pagination.
+	var nextURL, prevURL string
+	if len(res) > page * ResultsPerPage {
+		nextURL = changePageURL(r.URL, page + 1)
+	} else {
+		nextURL = "#"
+	}
+	if page > 1 && len(resultSlice) > 0 {
+		prevURL = changePageURL(r.URL, page - 1)
+	} else {
+		prevURL = "#"
+	}
+
+	resultPage :=  &SERP{
 		Query: queryString,
 		Page:      page,
-		Results:   res,
-		SearchAlgorithms: []queryFunc{s.BM25Query},
+		Results:   resultSlice,
+		NextURL: nextURL,
+		PrevURL : prevURL,
 	}
 
 	t, err := template.ParseFiles("templates/main.html")

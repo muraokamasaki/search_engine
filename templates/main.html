@@ -52,8 +52,8 @@
     </table>
     <nav aria-label="SERP">
         <ul class="pagination">
-            <li class="page-item">
-                <a class="page-link" href="#">
+            <li class="page-item {{if eq .PrevURL "#"}}disabled{{end}}">
+                <a class="page-link" href={{.PrevURL}}>
                     <span aria-hidden="true">&larr;</span>Previous
                 </a>
             </li>
@@ -62,8 +62,8 @@
                     {{.Page}}<span class="sr-only">(current)</span>
                 </span>
             </li>
-            <li class="page-item">
-                <a class="page-link" href="#">
+            <li class="page-item {{if eq .NextURL "#"}}disabled{{end}}">
+                <a class="page-link" href={{.NextURL}}>
                     Next<span aria-hidden="true">&rarr;</span>
                 </a>
             </li>
