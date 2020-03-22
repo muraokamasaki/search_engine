@@ -14,10 +14,12 @@ type SERP struct {
 	Query string
 	Page int
 	Results []Document
+	Algorithm string
 	NextURL string
 	PrevURL string
 }
 
+// Returns a slice of the results based on the page number.
 func paginateResult(results []Document, page int) (resSlice []Document) {
 	if len(results) >= (page - 1) * ResultsPerPage {
 		resSlice = results[(page - 1) * ResultsPerPage : min(page * ResultsPerPage, len(results))]
@@ -25,6 +27,7 @@ func paginateResult(results []Document, page int) (resSlice []Document) {
 	return
 }
 
+// Creates a new URL from an existing URL with a different page number.
 func changePageURL(u *url.URL, page int) string {
 	u, _ = url.Parse(u.String())
 	q := u.Query()
@@ -55,7 +58,7 @@ func (s Searcher) queryHandler(w http.ResponseWriter, r *http.Request) {
 	if searchAlgorithm == "" {
 		searchAlgorithm = "BM25"  // Defaults to BM25
 	}
-	res := s.Query(queryString, s.mapNameToFunc(searchAlgorithm)) // js injections?
+	res := s.Query(queryString, s.mapNameToFunc(searchAlgorithm))
 	resultSlice := paginateResult(res, page)
 
 	// Create URLs for pagination.
@@ -75,6 +78,7 @@ func (s Searcher) queryHandler(w http.ResponseWriter, r *http.Request) {
 		Query: queryString,
 		Page:      page,
 		Results:   resultSlice,
+		Algorithm: searchAlgorithm,
 		NextURL: nextURL,
 		PrevURL : prevURL,
 	}
@@ -94,6 +98,6 @@ func (s Searcher) queryHandler(w http.ResponseWriter, r *http.Request) {
 func RunServer() {
 	s := NewSearcher(3)
 	s.BuildFromCSV("example.csv")
-	http.HandleFunc("/", s.queryHandler)
+	http.HandleFunc("/search", s.queryHandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

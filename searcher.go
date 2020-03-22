@@ -20,13 +20,12 @@ func NewSearcher(k int) *Searcher {
 // Defines query methods.
 type queryFunc func(string) []int
 
-// Main query method
+// Main query method that returns documents.
 func (s Searcher) Query(query string, fn queryFunc) []Document {
 	resultIDs := fn(query)
 	// TODO: Make for general document storage
 	return getDocumentFromCSV("example.csv", resultIDs)
 }
-
 
 // Filters documents that contain all of the provided terms.
 func (s Searcher) TermsQuery(query string) (results []int) {

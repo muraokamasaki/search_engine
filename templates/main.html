@@ -9,7 +9,7 @@
 <body>
 <nav class="navbar navbar-expand-lg navbar-light bg-light">
     <div class="container">
-        <a class="navbar-brand" href="/">Search</a>
+        <a class="navbar-brand" href="/search">Search</a>
     </div>
 </nav>
 <div class="container">
@@ -18,19 +18,19 @@
         <div class="form-row">
             <div class="form-group col-md-5">
                 <label for="query" class="h2">Query</label>
-                <input type="text" id="query" class="form-control form-control-lg" name="q">
+                <input type="text" id="query" class="form-control form-control-lg" name="q" value={{.Query}}>
             </div>
         </div>
         <div class="form-row">
             <div class="form-group col-md-5">
                 <label for="search-alg">Search Algorithm</label>
                 <select class="form-control" id="search-alg" name="alg">
-                    <option>BM25</option>
-                    <option>Classic TF-IDF</option>
-                    <option>Boolean</option>
-                    <option>Terms</option>
-                    <option>Fuzzy</option>
-                    <option>Wildcard</option>
+                    <option {{if eq .Algorithm "BM25"}}selected{{end}}>BM25</option>
+                    <option {{if eq .Algorithm "Classic TF-IDF"}}selected{{end}}>Classic TF-IDF</option>
+                    <option {{if eq .Algorithm "Boolean"}}selected{{end}}>Boolean</option>
+                    <option {{if eq .Algorithm "Terms"}}selected{{end}}>Terms</option>
+                    <option {{if eq .Algorithm "Fuzzy"}}selected{{end}}>Fuzzy</option>
+                    <option {{if eq .Algorithm "Wildcard"}}selected{{end}}>Wildcard</option>
                 </select>
 
             </div>
