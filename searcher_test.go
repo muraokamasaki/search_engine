@@ -125,10 +125,7 @@ func TestSearcher_BooleanQuery(t *testing.T) {
 	}
 	s := SetUpSearcher()
 	for _, pair := range pairs {
-		res, err := s.BooleanQuery(pair.query)
-		if err != nil {
-			t.Error(err)
-		}
+		res := s.BooleanQuery(pair.query)
 		if len(res) == len(pair.results) {
 			for i := range res {
 				if res[i] != pair.results[i] {
