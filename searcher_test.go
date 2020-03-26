@@ -80,8 +80,8 @@ func TestSplitTrimToLower(t *testing.T) {
 }
 
 func SetUpSearcher() (s *Searcher) {
-	s = NewSearcher(3)
-	s.BuildFromCSV("example.csv")
+	s = NewSearcher(3, NewCSVStorage("example.csv"))
+	s.BuildIndices()
 	return
 }
 

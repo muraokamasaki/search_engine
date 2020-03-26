@@ -10,10 +10,11 @@ type Searcher struct {
 	ii InvertedIndex
 	ki KGramIndex
 	docLen DocumentLengths
+	storage DocumentStorage
 }
 
-func NewSearcher(k int) *Searcher {
-	return &Searcher{ii: *NewInvertedIndex(), ki: *NewKGramIndex(k), docLen: DocumentLengths{}}
+func NewSearcher(k int, storage DocumentStorage) *Searcher {
+	return &Searcher{ii: *NewInvertedIndex(), ki: *NewKGramIndex(k), docLen: DocumentLengths{}, storage:storage}
 }
 
 // Query methods that our Searcher implements.
@@ -23,8 +24,7 @@ type queryFunc func(string) []int
 // Main query method that returns documents.
 func (s Searcher) Query(query string, fn queryFunc) []Document {
 	resultIDs := fn(query)
-	// TODO: Make for general document storage
-	return getDocumentFromCSV("example.csv", resultIDs)
+	return s.storage.Get(resultIDs)
 }
 
 // Filters documents that contain all of the provided terms.
@@ -253,11 +253,9 @@ func (s Searcher) BM25Query(query string) (results []int) {
 	return
 }
 
-// Functions used to index documents.
-
-// Builds the searcher from a csv of columns 'id', 'Title', 'Body'.
-func (s *Searcher) BuildFromCSV(filename string) {
-	readDocumentFromCSV(filename, func(doc Document) {
+// Build the indices from the document storage.
+func (s *Searcher) BuildIndices() {
+	s.storage.Apply(func(doc Document) {
 		// Only take word count of Body.
 		s.docLen.addDocumentLength(doc.Body)
 		// Adds words in Title and Body to index.

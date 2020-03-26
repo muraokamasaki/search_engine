@@ -53,9 +53,22 @@ func wordCount(document string) int {
 // Defines functions that consumes documents.
 type documentFn func(document Document)
 
-// Reads through a CSV file of columns 'id', 'title', 'body' and 'URL' and applies a function to each document.
-func readDocumentFromCSV(filename string, fn documentFn) {
-	f, err := os.Open(filename)
+type DocumentStorage interface {
+	Apply(fn documentFn)  // Applies a function to each document.
+	Get(ids []int) []Document  // Retrieves a list of documents with corresponding ids.
+}
+
+// CSV file of columns 'id', 'title', 'body' and 'URL'
+type CSVStorage struct {
+	filename string
+}
+
+func NewCSVStorage(filename string) *CSVStorage {
+	return &CSVStorage{filename:filename}
+}
+
+func (store CSVStorage) Apply(fn documentFn) {
+	f, err := os.Open(store.filename)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -84,11 +97,10 @@ func readDocumentFromCSV(filename string, fn documentFn) {
 	}
 }
 
-// Retrieve a list of documents from a CSV with columns 'id', 'title', 'body' and 'URL.
-func getDocumentFromCSV(filename string, ids []int) (resultsList []Document) {
+func (store CSVStorage) Get(ids []int) (resultsList []Document) {
 	resultsList = make([]Document, len(ids))
 
-	f, err := os.Open(filename)
+	f, err := os.Open(store.filename)
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -132,15 +144,18 @@ func getDocumentFromCSV(filename string, ids []int) (resultsList []Document) {
 	return
 }
 
-// Read from a SQL database table 'documents' with attributes 'id', 'title', 'body' and 'URL'
-func readDocumentFromSQL(filename string, fn documentFn) {
-	db, err := sql.Open("sqlite3", filename)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
 
-	rows, err := db.Query("SELECT id, title, body, URL FROM documents")
+type SQLStorage struct {
+	*sql.DB
+}
+
+func NewSQLStorage(db *sql.DB) *SQLStorage {
+	return &SQLStorage{db}
+}
+
+// Read from a SQL database table 'documents' with attributes 'id', 'title', 'body' and 'URL'
+func (store *SQLStorage) Apply(fn documentFn) {
+	rows, err := store.Query("SELECT id, title, body, URL FROM documents")
 	if err != nil {
 		log.Fatal(err)
 	}
@@ -156,17 +171,10 @@ func readDocumentFromSQL(filename string, fn documentFn) {
 }
 
 // Retrieve a list of documents from a SQL database table 'documents' with attributes 'id', 'title', 'body' and 'URL'
-func getDocumentFromSQL(filename string, ids []int) (resultsList []Document) {
+func (store *SQLStorage) Get(ids []int) (resultsList []Document) {
 	resultsList = make([]Document, len(ids))
-
-	db, err := sql.Open("sqlite3", filename)
-	if err != nil {
-		log.Fatal(err)
-	}
-	defer db.Close()
-
 	for idx, id := range ids {
-		row := db.QueryRow("SELECT id, title, body, URL FROM documents WHERE id=?", id)
+		row := store.QueryRow("SELECT id, title, body, URL FROM documents WHERE id=?", id)
 		row.Scan(&resultsList[idx].id, &resultsList[idx].Title, &resultsList[idx].Body, &resultsList[idx].URL) // Ignore error, skip idx if no document can be found.
 	}
 	return

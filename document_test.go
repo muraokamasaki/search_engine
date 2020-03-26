@@ -1,6 +1,8 @@
 package main
 
 import (
+	"database/sql"
+	"log"
 	"testing"
 )
 
@@ -55,9 +57,10 @@ func TestDocumentList_AverageDocumentLength(t *testing.T) {
 	}
 }
 
-func TestReadDocumentFromCSV(t *testing.T) {
+func TestCSVStorage_Apply(t *testing.T) {
 	wanted := []string{"Cohen's kappa", "Latent semantic analysis", "Code-division multiple access"}
-	readDocumentFromCSV("example.csv", func (d Document) {
+	csvStore := NewCSVStorage("example.csv")
+	csvStore.Apply(func (d Document) {
 		 if wanted[d.id - 1] != d.Title {
 			 t.Errorf("Read wrong document. Got %v, Wanted %v.", d.Title, wanted[d.id - 1])
 		 }
@@ -65,13 +68,14 @@ func TestReadDocumentFromCSV(t *testing.T) {
 }
 
 func TestGetDocumentFromCSV(t *testing.T) {
-	resultList := getDocumentFromCSV("example.csv", []int{2, 1, 3})
 	wanted := []string{"Latent semantic analysis", "Cohen's kappa", "Code-division multiple access"}
+	csvStore := NewCSVStorage("example.csv")
+	resultList := csvStore.Get([]int{2, 1, 3})
 	if resultList[0].Title != wanted[0] && resultList[1].Title != wanted[1] && resultList[2].Title != wanted[2] {
 		t.Errorf("Wrong document titles. Got %v, Wanted %v.", resultList, wanted)
 	}
 	// Test getting non-existent document.
-	resultList = getDocumentFromCSV("example.csv", []int{4})
+	resultList = csvStore.Get([]int{4})
 	for _, result := range resultList {
 		if result.id != 0 && result.Title != "" && result.Body != "" && result.URL != "" {
 			t.Errorf("Retrived wrong document. Got %v, Wanted empty document", result)
@@ -81,7 +85,13 @@ func TestGetDocumentFromCSV(t *testing.T) {
 
 func TestReadDocumentFromSQL(t *testing.T) {
 	wanted := []string{"Cohen's kappa", "Latent semantic analysis", "Code-division multiple access"}
-	readDocumentFromSQL("example.db", func (d Document) {
+	db, err := sql.Open("sqlite3", "example.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+	dbStore := NewSQLStorage(db)
+	dbStore.Apply(func (d Document) {
 		if wanted[d.id - 1] != d.Title {
 			t.Errorf("Read wrong document. Got %v, Wanted %v.", d.Title, wanted[d.id - 1])
 		}
@@ -89,13 +99,19 @@ func TestReadDocumentFromSQL(t *testing.T) {
 }
 
 func TestGetDocumentFromSQL(t *testing.T) {
-	resultList := getDocumentFromSQL("example.db", []int{2, 1, 3})
 	wanted := []string{"Latent semantic analysis", "Cohen's kappa", "Code-division multiple access"}
+	db, err := sql.Open("sqlite3", "example.db")
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer db.Close()
+	dbStore := NewSQLStorage(db)
+	resultList := dbStore.Get([]int{2, 1, 3})
 	if resultList[0].Title != wanted[0] && resultList[1].Title != wanted[1] && resultList[2].Title != wanted[2] {
 		t.Errorf("Wrong document titles. Got %v, Wanted %v.", resultList, wanted)
 	}
 	// Test getting non-existent document.
-	resultList = getDocumentFromSQL("example.db", []int{4})
+	resultList = dbStore.Get([]int{4})
 	for _, result := range resultList {
 		if result.id != 0 && result.Title != "" && result.Body != "" && result.URL != "" {
 			t.Errorf("Retrived wrong document. Got %v, Wanted empty document", result)

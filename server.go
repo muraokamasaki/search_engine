@@ -96,8 +96,8 @@ func (s Searcher) queryHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 func RunServer() {
-	s := NewSearcher(3)
-	s.BuildFromCSV("example.csv")
+	s := NewSearcher(3, NewCSVStorage("example.csv"))
+	s.BuildIndices()
 	http.HandleFunc("/search", s.queryHandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }
