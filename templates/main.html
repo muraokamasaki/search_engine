@@ -17,8 +17,7 @@
     <form method="get">
         <div class="form-row">
             <div class="form-group col-md-5">
-                <label for="query" class="h2">Query</label>
-                <input type="text" id="query" class="form-control form-control-lg" name="q" value={{.Query}}>
+                <input type="text" id="query" class="form-control form-control-lg" placeholder="Query" name="q" value="{{.Query}}">
             </div>
         </div>
         <div class="form-row">
@@ -32,7 +31,11 @@
                     <option {{if eq .Algorithm "Fuzzy"}}selected{{end}}>Fuzzy</option>
                     <option {{if eq .Algorithm "Wildcard"}}selected{{end}}>Wildcard</option>
                 </select>
-
+            </div>
+        </div>
+        <div class="form-row">
+            <div class="form-group col-md-5">
+                <button type="submit" class="btn btn-primary">Search</button>
             </div>
         </div>
     </form>
@@ -50,25 +53,48 @@
             </tr>
         {{end}}
     </table>
-    <nav aria-label="SERP">
-        <ul class="pagination">
-            <li class="page-item {{if eq .PrevURL "#"}}disabled{{end}}">
-                <a class="page-link" href={{.PrevURL}}>
-                    <span aria-hidden="true">&larr;</span>Previous
-                </a>
-            </li>
-            <li class="page-item active">
-                <span class="page-link">
-                    {{.Page}}<span class="sr-only">(current)</span>
-                </span>
-            </li>
-            <li class="page-item {{if eq .NextURL "#"}}disabled{{end}}">
-                <a class="page-link" href={{.NextURL}}>
-                    Next<span aria-hidden="true">&rarr;</span>
-                </a>
-            </li>
-        </ul>
-    </nav>
+    {{if .Query}}
+        <nav aria-label="SERP">
+            <ul class="pagination">
+                <li class="page-item {{if eq .PrevURL "#"}}disabled{{end}}">
+                    <a class="page-link" href={{.PrevURL}}>
+                        <span aria-hidden="true">&larr;</span>Previous
+                    </a>
+                </li>
+                <li class="page-item active">
+                    <span class="page-link">
+                        {{.Page}}<span class="sr-only">(current)</span>
+                    </span>
+                </li>
+                <li class="page-item {{if eq .NextURL "#"}}disabled{{end}}">
+                    <a class="page-link" href={{.NextURL}}>
+                        Next<span aria-hidden="true">&rarr;</span>
+                    </a>
+                </li>
+            </ul>
+        </nav>
+    {{else}}
+        <div class="jumbotron">
+            <h1>Search Engine</h1>
+            <p class="lead">Basic search engine with 5 kinds of search algorithms<br></p>
+            <ol>
+                <li>Okapi BM25 search algorithm with <em>k</em>=0.9 and <em>b</em>=0.4.</li>
+                <li>TF-IDF vector space model.</li>
+                <li>Boolean Queries using && (and) and || (or).</li>
+                <li>Exact term matching.</li>
+                <li>Fuzzy queries.</li>
+                <li>Wildcard queries using *.</li>
+            </ol>
+            <p class="lead">
+                Source<br><a href="https://github.com/muraokamasaki">Github</a>
+            </p>
+            <hr>
+            <p>
+                Reference<br>
+                Christopher D. Manning, Prabhakar Raghavan, and Hinrich Schütze. 2008. Introduction to Information Retrieval. Cambridge University Press, USA.
+            </p>
+        </div>
+    {{end}}
 </div>
 </body>
 </html>
