@@ -3,7 +3,6 @@ package main
 import (
 	"database/sql"
 	"encoding/csv"
-	_ "github.com/mattn/go-sqlite3"
 	"io"
 	"log"
 	"os"
