@@ -1,6 +1,7 @@
 # Search Engine
 
 An implementation of a search engine written in golang.
+Currently only contains an indexer and ranker with a basic parser (tokenizer).
 Documents are indexed in an inverted index and k-gram index for different query methods.
 
 ### Reference
