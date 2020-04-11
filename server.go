@@ -36,7 +36,7 @@ func changePageURL(u *url.URL, page int) string {
 	return u.String()
 }
 
-func (s Searcher) mapNameToFunc(funcName string) queryFunc {
+func (s Searcher) mapNameToFunc(funcName string) (f queryFunc) {
 	funcMap := map[string]queryFunc{
 		"BM25": s.BM25Query,
 		"Classic TF-IDF": s.VectorSpaceQuery,
@@ -45,7 +45,11 @@ func (s Searcher) mapNameToFunc(funcName string) queryFunc {
 		"Fuzzy": s.FuzzyQuery,
 		"Wildcard": s.WildcardQuery,
 	}
-	return funcMap[funcName]
+	f, ok := funcMap[funcName]
+	if !ok {
+		f = s.BM25Query  // Defaults to BM25
+	}
+	return
 }
 
 func (s Searcher) queryHandler(w http.ResponseWriter, r *http.Request) {
@@ -55,9 +59,6 @@ func (s Searcher) queryHandler(w http.ResponseWriter, r *http.Request) {
 		page = 1
 	}
 	searchAlgorithm := r.URL.Query().Get("alg")
-	if searchAlgorithm == "" {
-		searchAlgorithm = "BM25"  // Defaults to BM25
-	}
 	res := s.Query(queryString, s.mapNameToFunc(searchAlgorithm))
 	resultSlice := paginateResult(res, page)
 
@@ -95,9 +96,9 @@ func (s Searcher) queryHandler(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
-func RunServer() {
-	s := NewSearcher(3, NewCSVStorage("example.csv"))
+func RunServer(k int, store DocumentStorage) {
+	s := NewSearcher(k, store)
 	s.BuildIndices()
-	http.HandleFunc("/search", s.queryHandler)
+	http.HandleFunc("/", s.queryHandler)
 	log.Fatal(http.ListenAndServe(":8080", nil))
 }

@@ -1,5 +1,5 @@
 package main
 
 func main() {
-	RunServer()
+	RunServer(3, NewCSVStorage("example.csv"))
 }
