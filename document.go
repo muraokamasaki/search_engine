@@ -33,12 +33,12 @@ func (docLen *DocumentLengths) addDocumentLength(document string) {
 }
 
 // Returns the length (the number of words) of a document.
-func (docLen DocumentLengths) DocLength(docID int) int {
+func (docLen *DocumentLengths) DocLength(docID int) int {
 	return docLen.lengths[docID-1]  // -1 since documents are indexed from 1.
 }
 
 // Returns the average length of documents.
-func (docLen DocumentLengths) averageDocumentLength() float64 {
+func (docLen *DocumentLengths) averageDocumentLength() float64 {
 	return float64(docLen.totalLength) / float64(len(docLen.lengths))
 }
 
@@ -66,7 +66,7 @@ func NewCSVStorage(filename string) *CSVStorage {
 	return &CSVStorage{filename:filename}
 }
 
-func (store CSVStorage) Apply(fn documentFn) {
+func (store *CSVStorage) Apply(fn documentFn) {
 	f, err := os.Open(store.filename)
 	if err != nil {
 		log.Fatal(err)
@@ -96,7 +96,7 @@ func (store CSVStorage) Apply(fn documentFn) {
 	}
 }
 
-func (store CSVStorage) Get(ids []int) (resultsList []Document) {
+func (store *CSVStorage) Get(ids []int) (resultsList []Document) {
 	resultsList = make([]Document, len(ids))
 
 	f, err := os.Open(store.filename)

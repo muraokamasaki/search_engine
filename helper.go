@@ -29,7 +29,7 @@ func tokenizeWildcard(text string) (tokens []string) {
 
 // Calculates edit (levenshtein) distance between two strings.
 func editDistance(s1 string, s2 string) int {
-	// Initialize empty 2-d array
+	// Initialize empty 2-d slice
 	m := make([][]int, len(s1)+1)
 	_m := make([]int, (len(s1)+1) * (len(s2)+1))
 	for i := range m {
@@ -56,7 +56,7 @@ func editDistance(s1 string, s2 string) int {
 
 // Test if the input string matches the wildcard pattern.
 func wildcardMatch(pattern string, str string) bool {
-	// Initialize empty 2-d array
+	// Initialize empty 2-d slice
 	m := make([][]bool, len(pattern)+1)
 	_m := make([]bool, (len(pattern)+1) * (len(str)+1))
 	for i := range m {
@@ -85,8 +85,8 @@ func min(a ...int) (m int) {
 	m = a[0]
 	for _, i := range a {
 		if i < m {
-		m = i
-	}
+			m = i
+		}
 	}
 	return
 }

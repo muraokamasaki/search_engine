@@ -8,7 +8,7 @@ import (
 	"strconv"
 )
 
-const ResultsPerPage = 10
+const ResultsPerPage = 5
 
 type SERP struct {
 	Query string
@@ -36,7 +36,7 @@ func changePageURL(u *url.URL, page int) string {
 	return u.String()
 }
 
-func (s Searcher) mapNameToFunc(funcName string) (f queryFunc) {
+func (s *Searcher) mapNameToFunc(funcName string) (f queryFunc) {
 	funcMap := map[string]queryFunc{
 		"BM25": s.BM25Query,
 		"Classic TF-IDF": s.VectorSpaceQuery,
@@ -52,7 +52,7 @@ func (s Searcher) mapNameToFunc(funcName string) (f queryFunc) {
 	return
 }
 
-func (s Searcher) queryHandler(w http.ResponseWriter, r *http.Request) {
+func (s *Searcher) queryHandler(w http.ResponseWriter, r *http.Request) {
 	queryString := r.URL.Query().Get("q")
 	page, err := strconv.Atoi(r.URL.Query().Get("page"))
 	if err != nil {
@@ -92,7 +92,6 @@ func (s Searcher) queryHandler(w http.ResponseWriter, r *http.Request) {
 	err = t.Execute(w, resultPage)
 	if err != nil {
 		http.Error(w, err.Error(), http.StatusInternalServerError)
-
 	}
 }
 

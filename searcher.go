@@ -22,20 +22,20 @@ func NewSearcher(k int, storage DocumentStorage) *Searcher {
 type queryFunc func(string) []int
 
 // Main query method that returns documents.
-func (s Searcher) Query(query string, fn queryFunc) []Document {
+func (s *Searcher) Query(query string, fn queryFunc) []Document {
 	resultIDs := fn(query)
 	return s.storage.Get(resultIDs)
 }
 
 // Filters documents that contain all of the provided terms.
-func (s Searcher) TermsQuery(query string) (results []int) {
+func (s *Searcher) TermsQuery(query string) (results []int) {
 	results = s.ii.Intersect(tokenize(query))
 	return
 }
 
 // Filters documents based on the boolean retrieval model.
 // Only supports AND (&&) and OR (||).
-func (s Searcher) BooleanQuery(query string) (results []int) {
+func (s *Searcher) BooleanQuery(query string) (results []int) {
 	// Allows boolean operations between terms. Terms should only consist of a single word.
 	var queryTerms []string
 	intersectFlag := strings.Contains(query, "&&")
@@ -130,7 +130,7 @@ func splitTrimToLower(str string, split string) (out []string) {
 
 // Filters documents that contain all of the provided terms.
 // Each term permits a spelling correction to terms within a certain edit distance.
-func (s Searcher) FuzzyQuery(query string) (results []int) {
+func (s *Searcher) FuzzyQuery(query string) (results []int) {
 	for _, queryTerm := range tokenize(query) {
 		fuzziness := getFuzziness(queryTerm)
 		terms := s.ki.GetCloseTerms(queryTerm, fuzziness)

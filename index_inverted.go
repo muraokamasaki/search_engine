@@ -31,12 +31,12 @@ func (ii *InvertedIndex) addIDToPostingsList(term string, docID int) {
     }
 }
 
-func (ii InvertedIndex) PostingsList(term string) (plist []int) {
+func (ii *InvertedIndex) PostingsList(term string) (plist []int) {
     return ii.postingsLists[term]
 }
 
 // Returns the IDs of documents that contain all the terms.
-func (ii InvertedIndex) Intersect(terms []string) (result []int) {
+func (ii *InvertedIndex) Intersect(terms []string) (result []int) {
     sort.Slice(terms, func(i, j int) bool { return len(ii.postingsLists[terms[i]]) < len(ii.postingsLists[terms[j]]) })
     result = ii.PostingsList(terms[0])
     pointer := 1
@@ -69,7 +69,7 @@ func IntersectPosting(plist1 []int, plist2 []int) (result []int) {
 }
 
 // Returns the IDs of documents that contains at least one term.
-func (ii InvertedIndex) Union(terms []string) (result []int) {
+func (ii *InvertedIndex) Union(terms []string) (result []int) {
     set := make(map[int]bool)
     for _, term := range terms {
         for _, id := range ii.PostingsList(term) {
@@ -107,7 +107,7 @@ func UnionPosting(plist1 []int, plist2 []int) (result []int) {
 }
 
 // Retrieves the term frequency for a given (term, document) pair.
-func (ii InvertedIndex) TermFrequency(term string, docID int) int {
+func (ii *InvertedIndex) TermFrequency(term string, docID int) int {
     for idx, id := range ii.PostingsList(term) {
         if id == docID {
             return ii.docTermFrequency[term][idx]
@@ -117,7 +117,7 @@ func (ii InvertedIndex) TermFrequency(term string, docID int) int {
 }
 
 // Calculates the inverse document frequency for a given term.
-func (ii InvertedIndex) InverseDocumentFrequency(term string) float64 {
+func (ii *InvertedIndex) InverseDocumentFrequency(term string) float64 {
     docFreq := len(ii.PostingsList(term))
     N := len(ii.postingsLists)
     if N == 0 || docFreq == 0 {
