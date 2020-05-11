@@ -57,6 +57,10 @@ type DocumentStorage interface {
 	Get(ids []int) []Document  // Retrieves a list of documents with corresponding ids.
 }
 
+type DocumentSaver interface {
+	Save(document Document)  // Adds a document, used when crawling
+}
+
 // CSV file of columns 'id', 'title', 'body' and 'URL'
 type CSVStorage struct {
 	filename string
@@ -143,7 +147,6 @@ func (store *CSVStorage) Get(ids []int) (resultsList []Document) {
 	return
 }
 
-
 type SQLStorage struct {
 	*sql.DB
 }
@@ -177,4 +180,13 @@ func (store *SQLStorage) Get(ids []int) (resultsList []Document) {
 		row.Scan(&resultsList[idx].id, &resultsList[idx].Title, &resultsList[idx].Body, &resultsList[idx].URL) // Ignore error, skip idx if no document can be found.
 	}
 	return
+}
+
+// Adds a document to the database
+func (store *SQLStorage) Save(document Document) {
+	statement, err := store.Prepare("INSERT INTO documents (title, body, url) VALUES (?, ?, ?)")
+	if err != nil {
+		log.Fatal(err)
+	}
+	statement.Exec(document.Title, document.Body, document.URL)
 }

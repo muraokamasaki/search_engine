@@ -7,6 +7,9 @@ import (
 	"net/http"
 	"net/url"
 	"path"
+	"strings"
+	"sync"
+	"time"
 )
 
 // Gets JSON from url and stores it in target interface.
@@ -102,4 +105,83 @@ func getWikiURL(title string) string {
 	}
 	u.Path = path.Join(u.Path, title)
 	return u.String()
+}
+
+// Keeps track of links that have been seen.
+type LinkMap struct {
+	seenLinks map[string]bool
+	mux       sync.Mutex
+}
+
+func (m *LinkMap) Length() int {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+	return len(m.seenLinks)
+}
+
+func (m *LinkMap) Value(key string) bool {
+	m.mux.Lock()
+	defer m.mux.Unlock()
+	return m.seenLinks[key]
+}
+
+func (m *LinkMap) AddLink(key string) {
+	m.mux.Lock()
+	m.seenLinks[key] = true
+	m.mux.Unlock()
+}
+
+// Crawls Wikipedia, starting from a seed of articles, saving the contents of each document.
+// (Note) When adding article titles to seed, incorrect capitalization can cause articles to not be retrieved.
+// Will add up to a given capacity of documents, or continue adding forever if -1 is passed.
+// Will wait a given duration after each article is scraped for politeness.
+func CrawlWiki(seed []string, docSaver DocumentSaver, capacity int, duration time.Duration) {
+	linkMap := LinkMap{seenLinks: make(map[string]bool)}
+	linkCh := make(chan string, len(seed))
+	docCh := make(chan Document)
+	documentsAdded := 0
+	for _, s := range seed {
+		linkCh <- s
+	}
+	for capacity == -1 || documentsAdded < capacity {
+		select {
+		case link := <- linkCh:
+			if !linkMap.Value(link) && (capacity == -1 || linkMap.Length() < capacity) {
+				linkMap.AddLink(link)
+				go crawlWikiLinks(link, linkCh)
+				go crawlWikiContents(link, docCh)
+				time.Sleep(duration)
+			}
+		case document := <-docCh:
+			docSaver.Save(document)
+			if capacity != -1 {
+				documentsAdded++
+			}
+		}
+	}
+}
+
+func crawlWikiLinks(link string, ch chan string) {
+	outlinks, ok := scrapeWikiLinks(link)
+	if !ok {
+		log.Println("Cannot retrieve outlinks for", link)
+		return
+	}
+	for _, outlink := range outlinks {
+		ch <- outlink
+	}
+}
+
+func crawlWikiContents(link string, ch chan Document) {
+	title := strings.ReplaceAll(link, " ", "_")
+	contents, ok := scrapeWikiContents(title)
+	if !ok {
+		log.Println("Cannot retrieve contents for", link)
+		return
+	}
+	ch <- Document{
+		Title: link,
+		Body:  contents,
+		URL:   getWikiURL(title),
+	}
 }
