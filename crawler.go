@@ -12,22 +12,25 @@ import (
 	"time"
 )
 
-// Gets JSON from url and stores it in target interface.
+// readAPI issues a GET request to a url, reading into JSON
+// and storing it in the target interface. Returns an error
+// if it fails to get the url or fails to read its content.
 func readAPI(url string, target *interface{}) error {
 	resp, err := http.Get(url)
 	if err != nil {
-		log.Println(err.Error())
+		return err
 	}
 	defer resp.Body.Close()
 
 	body, err := ioutil.ReadAll(resp.Body)
 	if err != nil {
-		log.Println(err.Error())
+		return err
 	}
 	return json.Unmarshal(body, target)
 }
 
-// Uses the wiki API to get the introduction paragraph for the title topic.
+// getWikiContents returns a url to get the introduction paragraph
+// for given title.
 func getWikiContents(title string) string {
 	w, err := url.Parse("https://en.wikipedia.org/w/api.php")
 	if err != nil {
@@ -47,7 +50,8 @@ func getWikiContents(title string) string {
 	return w.String()
 }
 
-// Uses the wiki API to get up to 3 out-going links in the wiki page.
+// getWikiContents returns a url to get up to 3 out-going
+// links from the Wikipedia article of the given title.
 func getWikiLinks(title string) string {
 	w, err := url.Parse("https://en.wikipedia.org/w/api.php")
 	if err != nil {
@@ -65,24 +69,30 @@ func getWikiLinks(title string) string {
 	return w.String()
 }
 
-// Parses the JSON the contents to retrieve contents.
+// scrapeWikiContents uses the WikiAPI to retrieve the introductory
+// paragraph for the given title. Returns the contents as a string
+// and a bool indicating if the scraping was successful.
 func scrapeWikiContents(title string) (string, bool) {
 	var webPage interface{}
 	err := readAPI(getWikiContents(title), &webPage)
 	if err != nil {
 		log.Println(err)
+		return "", false
 	}
 	ext, ok := webPage.(map[string]interface{})["query"].(map[string]interface{})["pages"].
 		([]interface{})[0].(map[string]interface{})["extract"].(string)
 	return ext, ok
 }
 
-// Parses the JSON the contents to retrieve out-going links.
+// scrapeWikiLinks uses the WikiAPI to retrieve up to 3 out-going
+// links from the Wikipedia article. Returns the links as a string
+// slice and a bool indicating if scraping was successful.
 func scrapeWikiLinks(title string) (links []string, ok bool) {
 	var webPage interface{}
 	err := readAPI(getWikiLinks(title), &webPage)
 	if err != nil {
 		log.Println(err)
+		return
 	}
 	ext, ok := webPage.(map[string]interface{})["query"].(map[string]interface{})["pages"].
 		([]interface{})[0].(map[string]interface{})["links"].([]interface{})
@@ -98,6 +108,8 @@ func scrapeWikiLinks(title string) (links []string, ok bool) {
 	return
 }
 
+// getWikiURL returns the address to a Wikipedia article for a
+// given title. Does not check if the article exists.
 func getWikiURL(title string) string {
 	u, err := url.Parse("https://en.wikipedia.org/wiki/")
 	if err != nil {
@@ -107,7 +119,7 @@ func getWikiURL(title string) string {
 	return u.String()
 }
 
-// Keeps track of links that have been seen.
+// LinkMap keeps track of links that have been scraped.
 type LinkMap struct {
 	seenLinks map[string]bool
 	mux       sync.Mutex
@@ -131,10 +143,41 @@ func (m *LinkMap) AddLink(key string) {
 	m.mux.Unlock()
 }
 
-// Crawls Wikipedia, starting from a seed of articles, saving the contents of each document.
-// (Note) When adding article titles to seed, incorrect capitalization can cause articles to not be retrieved.
-// Will add up to a given capacity of documents, or continue adding forever if -1 is passed.
-// Will wait a given duration after each article is scraped for politeness.
+// crawlWikiContents will scrape the article at the given URL,
+// create a Document and send it through the channel.
+func crawlWikiContents(link string, ch chan Document) {
+	title := strings.ReplaceAll(link, " ", "_")
+	contents, ok := scrapeWikiContents(title)
+	if !ok {
+		log.Println("Cannot retrieve contents for", link)
+		return
+	}
+	ch <- Document{
+		Title: link,
+		Body:  contents,
+		URL:   getWikiURL(title),
+	}
+}
+
+// crawlWikiLinks will scrape the out-going links from a given
+// URL and send each link though the channel.
+func crawlWikiLinks(link string, ch chan string) {
+	outlinks, ok := scrapeWikiLinks(link)
+	if !ok {
+		log.Println("Cannot retrieve outlinks for", link)
+		return
+	}
+	for _, outlink := range outlinks {
+		ch <- outlink
+	}
+}
+
+// CrawlWiki crawls Wikipedia articles, starting from a given seed of articles,
+// and saves the introductory paragraph in the DocumentSaver. Will scrape up
+// to a given capacity of documents, or continue forever if -1 is passed. Will
+// wait a given duration after each article is scraped for politeness.
+// (Note) Article titles in seed must be capitalization properly as it can
+// cause articles to not be retrieved.
 func CrawlWiki(seed []string, docSaver DocumentSaver, capacity int, duration time.Duration) {
 	linkMap := LinkMap{seenLinks: make(map[string]bool)}
 	linkCh := make(chan string, len(seed))
@@ -158,30 +201,5 @@ func CrawlWiki(seed []string, docSaver DocumentSaver, capacity int, duration tim
 				documentsAdded++
 			}
 		}
-	}
-}
-
-func crawlWikiLinks(link string, ch chan string) {
-	outlinks, ok := scrapeWikiLinks(link)
-	if !ok {
-		log.Println("Cannot retrieve outlinks for", link)
-		return
-	}
-	for _, outlink := range outlinks {
-		ch <- outlink
-	}
-}
-
-func crawlWikiContents(link string, ch chan Document) {
-	title := strings.ReplaceAll(link, " ", "_")
-	contents, ok := scrapeWikiContents(title)
-	if !ok {
-		log.Println("Cannot retrieve contents for", link)
-		return
-	}
-	ch <- Document{
-		Title: link,
-		Body:  contents,
-		URL:   getWikiURL(title),
 	}
 }

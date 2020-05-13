@@ -19,7 +19,7 @@ type SERP struct {
 	PrevURL string
 }
 
-// Returns a slice of the results based on the page number.
+// paginateResult returns a subset of the results based on the page number.
 func paginateResult(results []Document, page int) (resSlice []Document) {
 	if len(results) >= (page - 1) * ResultsPerPage {
 		resSlice = results[(page - 1) * ResultsPerPage : min(page * ResultsPerPage, len(results))]
@@ -27,7 +27,7 @@ func paginateResult(results []Document, page int) (resSlice []Document) {
 	return
 }
 
-// Creates a new URL from an existing URL with a different page number.
+// changePageURL creates a new URL from an existing URL with a different page number.
 func changePageURL(u *url.URL, page int) string {
 	u, _ = url.Parse(u.String())
 	q := u.Query()

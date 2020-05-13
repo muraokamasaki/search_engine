@@ -18,13 +18,14 @@ type Document struct {
 	URL   string
 }
 
-// In-memory struct for fast access of lengths of document needed for document length normalization.
+// DocumentLengths stores the lengths of document and total length
+// of the documents.
 type DocumentLengths struct {
 	lengths []int
 	totalLength int
 }
 
-// Adds a document to the document length list.
+// addDocumentLength stores the length of the document.
 func (docLen *DocumentLengths) addDocumentLength(document string) {
 	docLength := wordCount(document)
 	docLen.lengths = append(docLen.lengths, docLength)
@@ -32,36 +33,45 @@ func (docLen *DocumentLengths) addDocumentLength(document string) {
 	return
 }
 
-// Returns the length (the number of words) of a document.
-func (docLen *DocumentLengths) DocLength(docID int) int {
+// docLength returns the length (word count) of a document.
+func (docLen *DocumentLengths) docLength(docID int) int {
 	return docLen.lengths[docID-1]  // -1 since documents are indexed from 1.
 }
 
-// Returns the average length of documents.
+// averageDocumentLength returns the average length of stored documents.
 func (docLen *DocumentLengths) averageDocumentLength() float64 {
 	return float64(docLen.totalLength) / float64(len(docLen.lengths))
 }
 
-// Returns the number of words in a document.
+// wordCount returns the number of words in a document.
 func wordCount(document string) int {
 	return len(strings.Fields(document))
 }
 
 // Functions that reads documents from external sources.
 
-// Defines functions that consumes documents.
+// documentFn defines functions that consumes documents.
 type documentFn func(document Document)
 
+// DocumentStorage is an interface that supports
+// retrieving and applying functions to documents.
 type DocumentStorage interface {
-	Apply(fn documentFn)  // Applies a function to each document.
-	Get(ids []int) []Document  // Retrieves a list of documents with corresponding ids.
+	// Apply applies a function to each document in DocumentStorage.
+	Apply(fn documentFn)
+	// Get returns a list of documents from a given list of ids.
+	Get(ids []int) []Document
 }
 
+// DocumentSaver is an interface that supports
+// adding documents to a collection.
 type DocumentSaver interface {
-	Save(document Document)  // Adds a document, used when crawling
+	// Save stores the given document.
+	// Used when crawling.
+	Save(document Document)
 }
 
-// CSV file of columns 'id', 'title', 'body' and 'URL'
+// CSVStorage contains a csv file storing documents with columns
+// 'id', 'title', 'body' and 'URL'.
 type CSVStorage struct {
 	filename string
 }
@@ -147,6 +157,9 @@ func (store *CSVStorage) Get(ids []int) (resultsList []Document) {
 	return
 }
 
+// SQLStorage holds a database handle which contains a
+// connection to a database storing documents with
+// attributes 'id', 'title', 'body' and 'URL'
 type SQLStorage struct {
 	*sql.DB
 }
@@ -155,7 +168,6 @@ func NewSQLStorage(db *sql.DB) *SQLStorage {
 	return &SQLStorage{db}
 }
 
-// Read from a SQL database table 'documents' with attributes 'id', 'title', 'body' and 'URL'
 func (store *SQLStorage) Apply(fn documentFn) {
 	rows, err := store.Query("SELECT id, title, body, URL FROM documents")
 	if err != nil {
@@ -172,7 +184,6 @@ func (store *SQLStorage) Apply(fn documentFn) {
 	}
 }
 
-// Retrieve a list of documents from a SQL database table 'documents' with attributes 'id', 'title', 'body' and 'URL'
 func (store *SQLStorage) Get(ids []int) (resultsList []Document) {
 	resultsList = make([]Document, len(ids))
 	for idx, id := range ids {
@@ -182,7 +193,6 @@ func (store *SQLStorage) Get(ids []int) (resultsList []Document) {
 	return
 }
 
-// Adds a document to the database
 func (store *SQLStorage) Save(document Document) {
 	statement, err := store.Prepare("INSERT INTO documents (title, body, url) VALUES (?, ?, ?)")
 	if err != nil {

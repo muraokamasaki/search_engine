@@ -5,7 +5,7 @@ import (
 	"strings"
 )
 
-// The Searcher type represents a search engine.
+// The Searcher type is an implementation of a search engine.
 type Searcher struct {
 	ii InvertedIndex
 	ki KGramIndex
@@ -17,23 +17,27 @@ func NewSearcher(k int, storage DocumentStorage) *Searcher {
 	return &Searcher{ii: *NewInvertedIndex(), ki: *NewKGramIndex(k), docLen: DocumentLengths{}, storage:storage}
 }
 
-// Query methods that our Searcher implements.
-// Defines query methods.
+// queryFunc defines methods that take in a query string and
+// returns a list of document IDs that are relevant to the query.
 type queryFunc func(string) []int
 
-// Main query method that returns documents.
+// Query returns a list of documents that are relevant to the query,
+// where relevance is defined by the given queryFunc.
 func (s *Searcher) Query(query string, fn queryFunc) []Document {
 	resultIDs := fn(query)
 	return s.storage.Get(resultIDs)
 }
 
-// Filters documents that contain all of the provided terms.
+// Query Methods
+
+// TermsQuery returns documents that contain an exact match of
+// all of the words in the query.
 func (s *Searcher) TermsQuery(query string) (results []int) {
 	results = s.ii.Intersect(tokenize(query))
 	return
 }
 
-// Filters documents based on the boolean retrieval model.
+// BooleanQuery returns documents based on the boolean retrieval model.
 // Only supports AND (&&) and OR (||).
 func (s *Searcher) BooleanQuery(query string) (results []int) {
 	// Allows boolean operations between terms. Terms should only consist of a single word.
@@ -76,7 +80,8 @@ func (s *Searcher) BooleanQuery(query string) (results []int) {
 	return
 }
 
-// Parses the expression into a set of tokens. Assumes that the expression is written in the infix notation.
+// parseInfix parses the expression and splits it into a set of tokens,
+// where each token is either a word or an operator.
 func parseInfix(expr string) (output []string) {
 	for _, i := range splitTrimToLower(expr, "&&") {
 		for _, j := range splitTrimToLower(i, "||") {
@@ -90,8 +95,10 @@ func parseInfix(expr string) (output []string) {
 	return
 }
 
-// Reorders the tokens from infix notation to a postfix notation.
-// Partial implementation of Shunting-yard algorithm, which only considers left associative, binary operators.
+// shuntingYard converts an expression given in infix notation to a
+// postfix "Reverse Polish" notation.
+// This is a partial implementation of Shunting-yard algorithm,
+// which only considers left associative, binary operators.
 func shuntingYard(tokens []string) (output []string) {
 	// orderOfOperations is a map containing operations used in our BooleanQuery.
 	// Larger value implies higher precedence; Values are arbitrary.
@@ -119,7 +126,8 @@ func shuntingYard(tokens []string) (output []string) {
 	return
 }
 
-// Splits the input string with the provided token. Trim and lowercase the output tokens.
+// splitTrimToLower splits the input string with the provided token,
+// trims whitespace and converts the output tokens to lowercase.
 func splitTrimToLower(str string, split string) (out []string) {
 	out = strings.Split(str, split)
 	for i := range out {
@@ -128,8 +136,9 @@ func splitTrimToLower(str string, split string) (out []string) {
 	return
 }
 
-// Filters documents that contain all of the provided terms.
-// Each term permits a spelling correction to terms within a certain edit distance.
+// FuzzyQuery returns documents that contain all of the provided terms.
+// Each term also accepts other terms that are within a certain edit distance.
+// For example "Fizzy" will match the query "Fuzzy".
 func (s *Searcher) FuzzyQuery(query string) (results []int) {
 	for _, queryTerm := range tokenize(query) {
 		fuzziness := getFuzziness(queryTerm)
@@ -144,7 +153,9 @@ func (s *Searcher) FuzzyQuery(query string) (results []int) {
 	return
 }
 
-// Edit distance for each term is based on the length of the term.
+// getFuzziness determines the edit distance for each term
+// based on its length.
+// Longer words are allowed more spelling mistakes.
 func getFuzziness(str string) (fuzziness int) {
 	if len(str) <= 2 {
 		fuzziness = 0
@@ -156,8 +167,9 @@ func getFuzziness(str string) (fuzziness int) {
 	return
 }
 
-// Filters documents that contain all of the provided terms.
-// Terms can contain the characters `?` and/or `*` which expands into one or more terms.
+// WildcardQuery returns documents that contain all of the provided terms.
+// Terms can contain the characters '?' which represents a single character,
+// and '*' which can be expanded into one or more characters.
 func (s Searcher) WildcardQuery(query string) (results []int) {
 	for _, queryTerm := range tokenizeWildcard(query) {
 		terms := s.ki.KGramMatch(queryTerm)
@@ -176,7 +188,7 @@ func (s Searcher) WildcardQuery(query string) (results []int) {
 	return
 }
 
-// Stores a id, score pair.
+// ScoringList stores a id, score pair.
 // Implements sort.Interface for sorting by descending score.
 type ScoringList struct {
 	ids []int
@@ -190,7 +202,8 @@ func (r ScoringList) Swap(i, j int) {
 }
 func (r ScoringList) Less(i, j int) bool { return r.scores[i] > r.scores[j] }
 
-// Returns a ranked list of results sorted by cosine similarity using the vector space model.
+// VectorSpaceQuery returns a ranked list of results sorted by
+// cosine similarity using the vector space model.
 // Scores are calculated using tf-idf and document length normalization.
 func (s Searcher) VectorSpaceQuery(query string) (results []int) {
 	resList := &ScoringList{}
@@ -209,14 +222,15 @@ func (s Searcher) VectorSpaceQuery(query string) (results []int) {
 		}
 	}
 	for i := range resList.ids {
-		resList.scores[i] /= float64(s.docLen.DocLength(resList.ids[i]))
+		resList.scores[i] /= float64(s.docLen.docLength(resList.ids[i]))
 	}
 	sort.Sort(resList)
 	results = resList.ids
 	return
 }
 
-// Returns the index of the int if it exists in the array, else returns -1.
+// findIndexInArray returns the index of the given int
+// if it exists in the array, else returns -1.
 func findIndexInArray(arr []int, value int) int {
 	for i, v := range arr {
 		if v == value {
@@ -226,7 +240,7 @@ func findIndexInArray(arr []int, value int) int {
 	return -1
 }
 
-// Returns a ranked list of results sorted by the Okapi BM25 algorithm.
+// BM25Query returns a ranked list of results scored by the Okapi BM25 algorithm.
 // Scores are calculated using tf-idf and document length normalization.
 func (s Searcher) BM25Query(query string) (results []int) {
 	k1 := 0.9
@@ -238,7 +252,7 @@ func (s Searcher) BM25Query(query string) (results []int) {
 			// Calculate BM25 score
 			tf := float64(s.ii.TermFrequency(queryTerm, docID))
 			idf := s.ii.InverseDocumentFrequency(queryTerm)
-			score :=  idf * (k1 + 1) * tf / (k1 * ((1 - b) + b * (float64(s.docLen.DocLength(docID)) / s.docLen.averageDocumentLength())) + tf)
+			score :=  idf * (k1 + 1) * tf / (k1 * ((1 - b) + b * (float64(s.docLen.docLength(docID)) / s.docLen.averageDocumentLength())) + tf)
 			if resultsIndex == -1 {
 				// Document ID not yet in results.
 				resList.ids = append(resList.ids, docID)
@@ -253,7 +267,8 @@ func (s Searcher) BM25Query(query string) (results []int) {
 	return
 }
 
-// Build the indices from the document storage.
+// BuildIndices builds the inverted index and k-gram index
+// from the document storage.
 func (s *Searcher) BuildIndices() {
 	s.storage.Apply(func(doc Document) {
 		// Only take word count of Body.

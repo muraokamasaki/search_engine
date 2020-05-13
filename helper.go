@@ -5,7 +5,8 @@ import (
 	"strings"
 )
 
-// Remove all non-alphanumeric characters and split into tokens.
+// tokenize strips all non-alphanumeric characters from the text,
+// lowercase it and split into tokens.
 func tokenize(text string) (tokens []string) {
 	re := regexp.MustCompile(`[^a-zA-Z0-9]+`)
 	for _, t := range re.Split(text, -1) {
@@ -16,7 +17,8 @@ func tokenize(text string) (tokens []string) {
 	return
 }
 
-// Remove all non-alphanumeric and wildcard characters and split into tokens.
+// tokenizeWildcard strips all non-alphanumeric characters, excluding
+// the wildcard token '*', from the text. Lowercase and splits into tokens.
 func tokenizeWildcard(text string) (tokens []string) {
 	re := regexp.MustCompile(`[^a-zA-Z0-9*?]+`)
 	for _, t := range re.Split(text, -1) {
@@ -27,7 +29,7 @@ func tokenizeWildcard(text string) (tokens []string) {
 	return
 }
 
-// Calculates edit (levenshtein) distance between two strings.
+// editDistance returns the edit (levenshtein) distance between two strings.
 func editDistance(s1 string, s2 string) int {
 	// Initialize empty 2-d slice
 	m := make([][]int, len(s1)+1)
@@ -54,7 +56,7 @@ func editDistance(s1 string, s2 string) int {
 	return m[len(s1)][len(s2)]
 }
 
-// Test if the input string matches the wildcard pattern.
+// wildcardMatch checks if the input string matches the wildcard pattern.
 func wildcardMatch(pattern string, str string) bool {
 	// Initialize empty 2-d slice
 	m := make([][]bool, len(pattern)+1)

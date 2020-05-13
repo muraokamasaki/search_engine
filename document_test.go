@@ -43,7 +43,7 @@ func TestDocumentList_DocLength(t *testing.T) {
 	}
 	docLen := setUpDocumentLengths()
 	for _, pair := range pairs {
-		length := docLen.DocLength(pair.id)
+		length := docLen.docLength(pair.id)
 		if length != pair.length {
 			t.Errorf("Wrong length for index %d: Got %d, Wanted %d.", pair.id, length, pair.length)
 		}
